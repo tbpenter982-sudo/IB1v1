@@ -87,26 +87,104 @@ function makeQuestions(){
 }
 
 function peerIdFromCode(code){ return `ib-race-${code.toLowerCase()}`; }
-function setupPeer(isHost, code){
+
+const PEER_OPTIONS = {
+  debug: 1,
+  secure: true,
+  host: '0.peerjs.com',
+  port: 443,
+  path: '/',
+  config: {
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' }
+    ]
+  }
+};
+
+function connectionErrorText(err){
+  const type = err?.type || '';
+  if(type === 'peer-unavailable') return 'Room not found. Check the code and make sure the host still has the lobby open.';
+  if(type === 'unavailable-id') return 'That room code is already in use. Go back and create a new room.';
+  if(type === 'network' || type === 'server-error' || type === 'socket-error') return 'The multiplayer service could not be reached from this network. Try another network or disable a restrictive VPN/firewall.';
+  if(type === 'webrtc') return 'The browsers found each other, but WebRTC could not make a direct connection on this network.';
+  return err?.message ? `Connection failed: ${err.message}` : 'Connection failed. Check the room code and try again.';
+}
+
+function setupPeer(isHost, code, timeoutMs=12000){
   return new Promise((resolve,reject)=>{
+    if(typeof Peer === 'undefined'){
+      reject(new Error('PeerJS library did not load.'));
+      return;
+    }
+
+    let settled=false;
+    let timeout=null;
+    const finish=(fn,val)=>{
+      if(settled) return;
+      settled=true;
+      clearTimeout(timeout);
+      fn(val);
+    };
+
     try{
-      peer = isHost ? new Peer(peerIdFromCode(code)) : new Peer();
-      const fail=e=>reject(e);
-      peer.on('error',fail);
-      peer.on('open',()=>{
-        if(isHost){
-          peer.on('connection', c=>{ if(conn && conn.open){ c.close(); return; } attachConn(c); resolve(c); });
-        } else {
-          const c=peer.connect(peerIdFromCode(code),{reliable:true,serialization:'json'}); attachConn(c); c.on('open',()=>resolve(c));
+      peer = isHost ? new Peer(peerIdFromCode(code), PEER_OPTIONS) : new Peer(undefined, PEER_OPTIONS);
+
+      timeout=setTimeout(()=>{
+        try{ peer?.destroy(); }catch{}
+        finish(reject,new Error(isHost ? 'Timed out opening the room.' : 'Timed out connecting to the host.'));
+      }, timeoutMs);
+
+      peer.on('error',err=>finish(reject,err));
+
+      peer.on('disconnected',()=>{
+        if(!raceEnded && $('#screen-lobby').classList.contains('active')){
+          $('#lobby-note').textContent='Connection to the multiplayer service was interrupted.';
         }
       });
-    }catch(e){reject(e)}
+
+      peer.on('open',()=>{
+        if(isHost){
+          $('#lobby-note').textContent='Room is online. Share the code with your opponent.';
+          peer.on('connection', c=>{
+            if(conn && conn.open){ c.close(); return; }
+            attachConn(c);
+            c.on('open',()=>finish(resolve,c));
+            c.on('error',err=>finish(reject,err));
+          });
+          // Host is successfully registered even though an opponent has not joined yet.
+          clearTimeout(timeout);
+          settled=true;
+          resolve(null);
+        } else {
+          const c=peer.connect(peerIdFromCode(code),{reliable:true,serialization:'json'});
+          attachConn(c);
+          c.on('open',()=>finish(resolve,c));
+          c.on('error',err=>finish(reject,err));
+          c.on('close',()=>{
+            if(!settled) finish(reject,new Error('The host closed the room before the connection completed.'));
+          });
+        }
+      });
+    }catch(e){
+      finish(reject,e);
+    }
   });
 }
+
 function attachConn(c){
   conn=c;
   c.on('data',handleMessage);
-  c.on('close',()=>{ if(!raceEnded && $('#screen-race').classList.contains('active')) $('#opp-status').textContent='Disconnected'; });
+  c.on('close',()=>{
+    if(!raceEnded && $('#screen-race').classList.contains('active')) $('#opp-status').textContent='Disconnected';
+    if($('#screen-lobby').classList.contains('active') && mode==='join'){
+      $('#lobby-title').textContent='Disconnected';
+      $('#lobby-note').textContent='The host closed the room.';
+    }
+  });
+  c.on('error',err=>{
+    if($('#screen-lobby').classList.contains('active')) $('#lobby-note').textContent=connectionErrorText(err);
+  });
 }
 function send(type,payload={}){ if(conn?.open) conn.send({type,...payload}); }
 function handleMessage(m){
@@ -192,13 +270,13 @@ $('#btn-host').onclick=async()=>{
   if(!config.topics.length){$('#setup-error').textContent='Select at least one topic.';$('#setup-error').classList.remove('hidden');return}
   makeQuestions(); roomCode=safeCode(); $('#room-code-value').textContent=roomCode; updateLobbySummary(); show('lobby');
   $('#btn-start').disabled=true; $('#lobby-title').textContent='Waiting for opponent'; $('#lobby-note').textContent='The host starts when both players are connected.';
-  try{ setupPeer(true,roomCode).catch(()=>{}); }catch(e){ $('#lobby-note').textContent='Could not open multiplayer connection. Refresh and try again.' }
+  try{ await setupPeer(true,roomCode); }catch(e){ $('#lobby-title').textContent='Could not create room'; $('#lobby-note').textContent=connectionErrorText(e); $('#btn-start').disabled=true; }
 };
 $('#btn-connect').onclick=async()=>{
   const code=$('#join-code').value.trim().toUpperCase(); if(code.length!==6){$('#join-error').textContent='Enter the full 6-character room code.';$('#join-error').classList.remove('hidden');return}
   roomCode=code; $('#room-code-value').textContent=code; show('lobby'); $('#lobby-title').textContent='Connecting…'; $('#btn-start').style.display='none'; $('#lobby-note').textContent='Connecting to host…';
   try{ await setupPeer(false,code); send('hello'); $('#lobby-title').textContent='Connected'; $('#lobby-note').textContent='Waiting for host to start the race.'; }
-  catch(e){ show('join'); $('#join-error').textContent='Room not found or connection failed. Check the code and try again.';$('#join-error').classList.remove('hidden'); }
+  catch(e){ show('join'); $('#join-error').textContent=connectionErrorText(e);$('#join-error').classList.remove('hidden'); }
 };
 $('#copy-code').onclick=async()=>{try{await navigator.clipboard.writeText(roomCode);$('#copy-code small').textContent='copied!';setTimeout(()=>$('#copy-code small').textContent='click to copy',1200)}catch{}};
 $('#btn-start').onclick=()=>startRace(true);
