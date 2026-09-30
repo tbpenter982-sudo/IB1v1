@@ -1,72 +1,67 @@
-# IB Race ⚡
+# IB Race — Firebase multiplayer trial
 
-A lightweight head-to-head study racing app for IB students. The trial version includes **Mathematics: Analysis and Approaches HL** and **Physics HL**.
+A GitHub Pages-ready 1v1 IB practice race for Math AA HL and Physics HL.
 
-## Features
+## Files to upload to GitHub
 
-- Two-player online races via room code
-- No account or custom backend required
-- Choose subject, topics, number of questions, and race time
-- Same generated questions for both players
-- Automatic numeric marking
-- Live score/progress updates
-- End-of-race answer review
-- Responsive UI for desktop and mobile
-- Original practice-question generators (not copied from IB exams)
+- `index.html`
+- `styles.css`
+- `app.js`
+- `firebase-config.js`
+- `firebase-rules.json` (reference file; its contents go into Firebase Console)
 
-## Run locally
+## No Terminal is required
 
-Because multiplayer uses browser networking, run it from a local web server instead of double-clicking `index.html`.
+### 1. Create a Firebase project
 
-```bash
-python3 -m http.server 8000
-```
+1. Go to https://console.firebase.google.com/
+2. Click **Create a project**.
+3. Open the project and choose **Build → Realtime Database**.
+4. Click **Create database**.
+5. Pick a region and create it.
 
-Then open:
+### 2. Add a Web app
 
-```text
-http://localhost:8000
-```
+1. In **Project settings**, under **Your apps**, click the Web `</>` icon.
+2. Register the app. You do not need Firebase Hosting.
+3. Firebase will show a `firebaseConfig` object.
 
-Open another browser/device to test multiplayer.
+### 3. Configure `firebase-config.js` on GitHub
 
-## Publish on GitHub Pages
+Open `firebase-config.js` in your GitHub repository, click the pencil/edit button, and replace the placeholder values with the values Firebase gives you.
 
-1. Create a new GitHub repository, e.g. `ib-race`.
-2. Upload `index.html`, `styles.css`, `app.js`, and `README.md` to the repository root.
-3. In GitHub, open **Settings → Pages**.
-4. Under **Build and deployment**, choose **Deploy from a branch**.
-5. Select branch **main** and folder **/(root)**.
-6. Save. GitHub will provide a public URL such as `https://YOURNAME.github.io/ib-race/`.
+Make sure the config includes `databaseURL`. You can copy the Realtime Database URL from the Realtime Database page if Firebase's generated config does not show it.
 
-## Multiplayer note
+Do not paste a service-account key or private server credentials.
 
-The trial uses **PeerJS** in the browser to connect the two players directly. That keeps GitHub Pages deployment simple and avoids requiring your own database/backend. For a larger public version, you would normally replace this with a persistent service such as Firebase, Supabase, or a small WebSocket server, which would allow matchmaking, accounts, rankings, race history, anti-cheat controls, and more reliable scaling.
+### 4. Add the Realtime Database rules
 
-## Question-bank architecture
+Open `firebase-rules.json` from this project and copy its contents.
 
-Questions are generated in `app.js`. Each question object contains:
+In Firebase Console go to:
 
-```js
-{
-  topic: "Calculus",
-  prompt: "...",
-  expression: "...",
-  answer: 12,
-  tolerance: 0.01
-}
-```
+**Build → Realtime Database → Rules**
 
-You can expand each topic by adding more generator templates. For production use, consider a versioned JSON question bank with tags such as:
+Replace the existing rules with the contents of `firebase-rules.json`, then click **Publish**.
 
-- subject
-- topic
-- subtopic
-- difficulty
-- calculator / non-calculator
-- expected answer type
-- markscheme/explanation
+These rules are intentionally simple for a trial build. A production public app should use Authentication and stricter per-player permissions.
 
-## Academic / copyright note
+### 5. Publish with GitHub Pages
 
-The included questions are original practice questions generated for this demo. They are **not official IB questions** and should not be represented as such. If you later add official or third-party question-bank content, make sure you have the necessary rights/licence.
+In GitHub:
+
+**Settings → Pages → Deploy from a branch → `main` → `/ (root)` → Save**
+
+Your app will be available at:
+
+`https://YOURUSERNAME.github.io/REPOSITORY-NAME/`
+
+## Test a race
+
+1. Open the site on device/browser A and click **Create a race**.
+2. Copy the six-character room code.
+3. Open the same site on device/browser B and click **Join with code**.
+4. Enter the code.
+5. The host clicks **Start race**.
+
+Both players should see the same questions and live scores.
