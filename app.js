@@ -22,11 +22,11 @@ const SUBJECTS = {
 
 const DEFAULT_QUESTION_BANKS = {
   race: {
-    url: 'https://ommodi.site/questionbanks/race.json',
+    url: './questionbanks/race.json',
     fallback: './questionbanks/race.json'
   },
   practice: {
-    url: 'https://ommodi.site/questionbanks/practice.json',
+    url: './questionbanks/practice.json',
     fallback: './questionbanks/practice.json'
   }
 };
