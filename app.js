@@ -1,1615 +1,641 @@
-const $ = s => document.querySelector(s);
-const $$ = s => [...document.querySelectorAll(s)];
+(() => {
+'use strict';
 
-/* =========================================================
-   IB RACE — expanded objective/problem-solving subjects
-   Subjects: Math AA, Math AI, Physics, Chemistry, Biology,
-             Economics, ESS
-   Each subject supports SL / HL + optional HARD MODE.
-   ========================================================= */
+/* ==============================================================
+   IB RACE v5
+   - 2–6 player Firebase races
+   - external, separate Race + Practice question banks
+   - SL/HL, Normal/Hard, hints worth 0.6 on a correct race answer
+   - typed scientific calculator
+   - self-rendering interface (does not depend on the old HTML screens)
+   ============================================================== */
 
 const SUBJECTS = {
-  mathAA: {
-    name: 'Mathematics: Analysis & Approaches',
-    short: 'Math AA',
-    icon: '∫',
-    topics: ['Algebra','Functions','Trigonometry','Calculus','Vectors','Probability & Statistics']
-  },
-  mathAI: {
-    name: 'Mathematics: Applications & Interpretation',
-    short: 'Math AI',
-    icon: 'Σ',
-    topics: ['Number & Algebra','Functions','Geometry & Trigonometry','Statistics & Probability','Calculus','Financial Mathematics']
-  },
-  physics: {
-    name: 'Physics',
-    short: 'Physics',
-    icon: '⚛',
-    topics: ['Mechanics','Waves','Fields','Electricity','Thermal','Nuclear']
-  },
-  chemistry: {
-    name: 'Chemistry',
-    short: 'Chemistry',
-    icon: '🧪',
-    topics: ['Stoichiometry','Atomic Structure','Bonding','Energetics','Kinetics','Equilibrium','Acids & Bases','Redox','Organic']
-  },
-  biology: {
-    name: 'Biology',
-    short: 'Biology',
-    icon: '🧬',
-    topics: ['Cell Biology','Molecular Biology','Genetics','Metabolism','Ecology','Evolution','Human Physiology']
-  },
-  economics: {
-    name: 'Economics',
-    short: 'Economics',
-    icon: '📈',
-    topics: ['Microeconomics','Macroeconomics','Global Economy','Development']
-  },
-  ess: {
-    name: 'Environmental Systems & Societies',
-    short: 'ESS',
-    icon: '🌍',
-    topics: ['Ecosystems','Biodiversity','Pollution','Climate Change','Water & Food','Energy & Resources','Sustainability']
-  }
+  mathAA:{name:'Mathematics: Analysis & Approaches',short:'Math AA',icon:'∫',topics:['Algebra','Functions','Trigonometry','Calculus','Vectors','Probability & Statistics']},
+  mathAI:{name:'Mathematics: Applications & Interpretation',short:'Math AI',icon:'Σ',topics:['Number & Algebra','Functions','Geometry & Trigonometry','Statistics & Probability','Calculus','Financial Mathematics']},
+  physics:{name:'Physics',short:'Physics',icon:'⚛',topics:['Mechanics','Waves','Fields','Electricity','Thermal','Nuclear']},
+  chemistry:{name:'Chemistry',short:'Chemistry',icon:'◌',topics:['Stoichiometry','Atomic Structure','Bonding','Energetics','Kinetics','Equilibrium','Acids & Bases','Redox','Organic']},
+  biology:{name:'Biology',short:'Biology',icon:'⌬',topics:['Cell Biology','Molecular Biology','Genetics','Metabolism','Ecology','Evolution','Human Physiology']},
+  economics:{name:'Economics',short:'Economics',icon:'↗',topics:['Microeconomics','Macroeconomics','Global Economy','Development']},
+  ess:{name:'Environmental Systems & Societies',short:'ESS',icon:'◎',topics:['Ecosystems','Biodiversity','Pollution','Climate Change','Water & Food','Energy & Resources','Sustainability']}
 };
 
-const SUBJECT_NAMES = Object.fromEntries(
-  Object.entries(SUBJECTS).map(([key, value]) => [key, value.short])
-);
-
-let mode = null;
-let db = null;
-let roomRef = null;
-let roomListener = null;
-let roomCode = null;
-let role = null;
-let activeRound = null;
-let config = {
-  subject: 'mathAA',
-  level: 'HL',
-  hardMode: false,
-  topics: [...SUBJECTS.mathAA.topics],
-  count: 10,
-  time: 300
+const DEFAULT_CONFIG = {
+  subject:'mathAA', level:'HL', hardMode:false,
+  topics:[...SUBJECTS.mathAA.topics], count:10, time:300, maxPlayers:6
 };
-let questions = [];
-let qIndex = 0;
-let score = 0;
-let oppScore = 0;
-let answered = [];
-let timerId = null;
-let timeLeft = 0;
-let raceEnded = false;
-let streak = 0;
 
-/* ------------------------- utilities ------------------------- */
-function show(id){
-  $$('.screen').forEach(x => x.classList.remove('active'));
-  const screen = $('#screen-' + id);
-  if(screen) screen.classList.add('active');
-}
-function rand(min,max){ return Math.floor(Math.random() * (max - min + 1)) + min; }
-function pick(a){ return a[Math.floor(Math.random() * a.length)]; }
-function round(n,d=3){ const p=10**d; return Math.round((n + Number.EPSILON) * p) / p; }
-function safeCode(){ return Math.random().toString(36).slice(2,8).toUpperCase().padEnd(6,'X').slice(0,6); }
-function prettyTime(s){ if(s<=0) return '00:00'; return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`; }
-function esc(s){ return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
-function signed(n){ return n>=0 ? `+ ${n}` : `− ${Math.abs(n)}`; }
-function gcd(a,b){ a=Math.abs(a); b=Math.abs(b); while(b){ [a,b]=[b,a%b]; } return a || 1; }
-function normalizeText(s){
-  return String(s ?? '')
-    .trim()
-    .toLowerCase()
-    .replace(/[−–—]/g,'-')
-    .replace(/\s+/g,' ')
-    .replace(/[.,;:!?]+$/g,'');
-}
-function subjectLabel(){
-  const s=SUBJECTS[config.subject];
-  return `${s ? s.short : config.subject} ${config.level || 'SL'}${config.hardMode ? ' • HARD' : ''}`;
-}
-function maxPossibleScore(){ return config.hardMode ? config.count * 2 : config.count; }
+const state = {
+  screen:'home',
+  banks:{race:[],practice:[]},
+  bankStatus:{race:'loading',practice:'loading'},
+  bankErrors:{race:'',practice:''},
+  config:{...DEFAULT_CONFIG},
+  firebaseDb:null,
+  roomRef:null,
+  roomListener:null,
+  roomCode:null,
+  room:null,
+  playerKey:null,
+  playerName:'Player',
+  sessionId:`s_${Math.random().toString(36).slice(2)}_${Date.now().toString(36)}`,
+  isHost:false,
+  activeRound:null,
+  race:{questions:[],index:0,score:0,answered:[],hintUsed:false,submitted:false,timer:null,startedAt:0},
+  practiceConfig:{subject:'mathAA',level:'HL',topic:'All topics',difficulty:'mixed',count:10},
+  practice:{active:false,questions:[],index:0,startedAt:0,timer:null},
+  calc:{angle:'DEG',result:'0'},
+  toastTimer:null
+};
 
-/* --------------------------- UI boost --------------------------- */
-function injectUpgradeStyles(){
-  if($('#ibrace-upgrade-styles')) return;
-  const style=document.createElement('style');
-  style.id='ibrace-upgrade-styles';
-  style.textContent=`
-    #subject-toggle.ibrace-subject-grid{display:grid!important;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
-    #subject-toggle.ibrace-subject-grid button{min-height:58px;padding:9px 10px;display:flex;align-items:center;justify-content:center;gap:8px;line-height:1.15}
-    .ib-subject-icon{font-size:1.2rem}
-    .ibrace-switch-row{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 14px}
-    .ibrace-switch-row button{flex:1;min-width:92px}
-    .ibrace-mini-label{font-size:.76rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;opacity:.7;margin-top:14px;margin-bottom:6px}
-    .hard-toggle.selected,.hard-badge{box-shadow:0 0 0 1px rgba(255,77,77,.45),0 0 22px rgba(255,77,77,.25)}
-    .hard-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 9px;border-radius:999px;font-weight:900;font-size:.75rem;letter-spacing:.06em;background:rgba(255,70,70,.13)}
-    .race-meta-line{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:6px;font-size:.82rem;opacity:.82}
-    .streak-pill{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:999px;background:rgba(255,170,0,.12);font-weight:800}
-    #hard-rules{margin-top:6px;font-size:.78rem;opacity:.72}
+const app = document.getElementById('app') || (()=>{ const x=document.createElement('div'); x.id='app'; document.body.appendChild(x); return x; })();
+const $ = (sel,root=document) => root.querySelector(sel);
+const $$ = (sel,root=document) => [...root.querySelectorAll(sel)];
+const esc = value => String(value ?? '').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+const clamp=(n,min,max)=>Math.max(min,Math.min(max,n));
+const round=(n,d=3)=>Math.round((Number(n)+Number.EPSILON)*10**d)/10**d;
+const shuffle = arr => { const a=[...arr]; for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; };
+const prettyTime = sec => { sec=Math.max(0,Math.floor(Number(sec)||0)); return `${String(Math.floor(sec/60)).padStart(2,'0')}:${String(sec%60).padStart(2,'0')}`; };
+const safeCode=()=>Math.random().toString(36).slice(2,8).toUpperCase().padEnd(6,'X').slice(0,6);
+const normalizeText=s=>String(s??'').trim().toLowerCase().replace(/[−–—]/g,'-').replace(/\s+/g,' ').replace(/[.,;:!?]+$/g,'');
+const levelsFor=q=>Array.isArray(q.level)?q.level:[q.level||'Both'];
+const topicsFor=q=>Array.isArray(q.topics)?q.topics:[q.topic].filter(Boolean);
+
+function toast(message){
+  let el=$('#toast');
+  if(!el){ el=document.createElement('div'); el.id='toast'; el.className='toast'; document.body.appendChild(el); }
+  el.textContent=message; el.classList.add('show');
+  clearTimeout(state.toastTimer); state.toastTimer=setTimeout(()=>el.classList.remove('show'),2200);
+}
+
+function setScreen(name){ state.screen=name; $$('.screen').forEach(x=>x.classList.toggle('active',x.dataset.screen===name)); window.scrollTo({top:0,behavior:'smooth'}); }
+
+function renderShell(){
+  app.innerHTML=`
+    <div class="app-shell">
+      <header class="topbar">
+        <button class="brand btn ghost" id="brand-home" type="button" aria-label="Home">
+          <span class="brand-mark">⚡</span><span class="brand-copy"><strong>IB RACE</strong><span>race • practise • improve</span></span>
+        </button>
+        <div class="top-actions">
+          <div class="bank-indicator"><span id="bank-dot" class="status-dot"></span><span id="bank-status">Loading question banks…</span></div>
+          <button class="btn secondary" id="global-calc" type="button">⌨ Calculator</button>
+        </div>
+      </header>
+
+      <section class="screen active" data-screen="home" id="screen-home"></section>
+      <section class="screen" data-screen="setup" id="screen-setup"></section>
+      <section class="screen" data-screen="join" id="screen-join"></section>
+      <section class="screen" data-screen="lobby" id="screen-lobby"></section>
+      <section class="screen" data-screen="race" id="screen-race"></section>
+      <section class="screen" data-screen="results" id="screen-results"></section>
+      <section class="screen" data-screen="practice" id="screen-practice"></section>
+    </div>
+    ${calculatorMarkup()}
   `;
-  document.head.appendChild(style);
+  $('#brand-home').addEventListener('click',leaveToHome);
+  $('#global-calc').addEventListener('click',openCalculator);
+  bindCalculator();
+  renderHome();
+  updateBankIndicator();
 }
 
-function ensureSetupControls(){
-  const subjectToggle=$('#subject-toggle');
-  if(!subjectToggle) return;
-  subjectToggle.classList.add('ibrace-subject-grid');
-
-  if(!$('#level-toggle')){
-    const levelLabel=document.createElement('div');
-    levelLabel.className='ibrace-mini-label';
-    levelLabel.textContent='IB level';
-    const level=document.createElement('div');
-    level.id='level-toggle';
-    level.className='ibrace-switch-row';
-    level.innerHTML='<button type="button" data-level="SL">SL</button><button type="button" data-level="HL">HL</button>';
-    subjectToggle.insertAdjacentElement('afterend', level);
-    subjectToggle.insertAdjacentElement('afterend', levelLabel);
-  }
-
-  if(!$('#difficulty-toggle')){
-    const topicList=$('#topic-list');
-    const difficultyLabel=document.createElement('div');
-    difficultyLabel.className='ibrace-mini-label';
-    difficultyLabel.textContent='Difficulty';
-    const difficulty=document.createElement('div');
-    difficulty.id='difficulty-toggle';
-    difficulty.className='ibrace-switch-row';
-    difficulty.innerHTML=`
-      <button type="button" data-hard="false">Normal</button>
-      <button type="button" class="hard-toggle" data-hard="true">🔥 HARD MODE</button>
-      <div id="hard-rules" style="flex-basis:100%">Hard mode: harder/multi-step questions, no formula hints, +2 correct, −1 wrong.</div>`;
-    if(topicList){
-      topicList.insertAdjacentElement('beforebegin', difficulty);
-      difficulty.insertAdjacentElement('beforebegin', difficultyLabel);
-    } else {
-      $('#screen-setup')?.append(difficultyLabel,difficulty);
-    }
-  }
-
-  if(!$('#race-mode-meta')){
-    const raceSubject=$('#race-subject');
-    if(raceSubject){
-      const meta=document.createElement('div');
-      meta.id='race-mode-meta';
-      meta.className='race-meta-line';
-      raceSubject.insertAdjacentElement('afterend',meta);
-    }
-  }
+function renderHome(){
+  $('#screen-home').innerHTML=`
+    <div class="hero">
+      <div class="hero-main">
+        <div class="eyebrow">competitive IB revision</div>
+        <h1>Stop revising.<br><em>Start racing.</em></h1>
+        <div class="hero-copy">Challenge up to five friends on the same IB subject, or drill a separate practice bank on your own. Fast setup, live standings, hard mode, formula hints and a built-in calculator.</div>
+        <div class="hero-actions">
+          <button class="btn primary" id="home-create">⚡ Create race</button>
+          <button class="btn secondary" id="home-join">⌁ Join room</button>
+          <button class="btn secondary" id="home-practice">◎ Practice</button>
+        </div>
+      </div>
+      <aside class="hero-side">
+        <div class="mode-card"><div class="mode-icon">🏁</div><h3>2–6 player races</h3><p>Everyone gets the same questions. Scores update live. Hard mode rewards clean answers and punishes misses.</p></div>
+        <div class="mode-card"><div class="mode-icon">◫</div><h3>Separate practice bank</h3><p>Practice questions never have to be the questions used in races. Filter by subject, level, topic and difficulty.</p></div>
+        <div class="mini-stat-row">
+          <div class="mini-stat"><b>7</b><span>subjects</span></div>
+          <div class="mini-stat"><b>SL / HL</b><span>levels</span></div>
+          <div class="mini-stat"><b>5</b><span>difficulty levels</span></div>
+        </div>
+      </aside>
+    </div>`;
+  $('#home-create').addEventListener('click',()=>{ state.isHost=true; state.config={...DEFAULT_CONFIG,topics:[...SUBJECTS.mathAA.topics]}; renderSetup(); setScreen('setup'); });
+  $('#home-join').addEventListener('click',()=>{ renderJoin(); setScreen('join'); });
+  $('#home-practice').addEventListener('click',()=>{ renderPractice(); setScreen('practice'); });
 }
 
-function buildSubjectPicker(){
-  const box=$('#subject-toggle');
-  if(!box) return;
-  box.innerHTML='';
-  for(const [key,s] of Object.entries(SUBJECTS)){
-    const b=document.createElement('button');
-    b.type='button';
-    b.dataset.subject=key;
-    b.innerHTML=`<span class="ib-subject-icon">${s.icon}</span><span>${esc(s.short)}</span>`;
-    if(key===config.subject) b.classList.add('selected');
-    b.onclick=()=>{
-      config.subject=key;
-      config.topics=[...SUBJECTS[key].topics];
-      $$('#subject-toggle button').forEach(x=>x.classList.toggle('selected',x===b));
-      buildTopics();
-    };
-    box.appendChild(b);
-  }
-  syncToggleUI();
+function renderSetup(){
+  const c=state.config;
+  $('#screen-setup').innerHTML=`
+    <div class="backline"><button class="btn ghost" id="setup-back">← Home</button></div>
+    <div class="setup-grid">
+      <div class="panel">
+        <div class="panel-head"><div><h2>Build a race</h2><p>Choose exactly what everyone will be tested on.</p></div></div>
+        <div class="setup-section"><div class="label">Subject</div><div class="subject-grid" id="subject-grid"></div></div>
+        <div class="setup-section"><div class="label">Level</div><div class="segmented" id="level-toggle"><button class="seg-btn ${c.level==='SL'?'selected':''}" data-level="SL">SL</button><button class="seg-btn ${c.level==='HL'?'selected':''}" data-level="HL">HL</button></div></div>
+        <div class="setup-section"><div class="label">Race mode</div><div class="segmented" id="hard-toggle"><button class="seg-btn ${!c.hardMode?'selected':''}" data-hard="false">Normal · 1 pt</button><button class="seg-btn ${c.hardMode?'selected':''}" data-hard="true">🔥 Hard · +2 / −1</button></div></div>
+        <div class="setup-section"><div class="label">Topics</div><div class="topic-grid" id="topic-grid"></div></div>
+        <div class="form-grid">
+          <div class="field"><label>Your name</label><input id="host-name" class="input" maxlength="22" value="${esc(state.playerName==='Player'?'':state.playerName)}" placeholder="e.g. Neil"></div>
+          <div class="field"><label>Players</label><select id="max-players" class="select">${[2,3,4,5,6].map(n=>`<option value="${n}" ${c.maxPlayers===n?'selected':''}>Up to ${n}</option>`).join('')}</select></div>
+          <div class="field"><label>Questions</label><select id="race-count" class="select">${[5,10,15,20,25,30].map(n=>`<option value="${n}" ${c.count===n?'selected':''}>${n}</option>`).join('')}</select></div>
+          <div class="field"><label>Timer</label><select id="race-time" class="select">${[[0,'No timer'],[180,'3 min'],[300,'5 min'],[600,'10 min'],[900,'15 min']].map(([v,t])=>`<option value="${v}" ${c.time===v?'selected':''}>${t}</option>`).join('')}</select></div>
+        </div>
+        <div id="setup-error" class="error-text"></div>
+      </div>
+      <aside class="summary-box">
+        <h3>Race preview</h3><div class="summary-list" id="setup-summary"></div>
+        <div class="bank-note" id="setup-bank-note"></div>
+        <button class="btn primary full" id="create-room" style="margin-top:15px">Create room →</button>
+      </aside>
+    </div>`;
+  renderSubjectButtons('#subject-grid',c.subject,key=>{ c.subject=key; c.topics=[...SUBJECTS[key].topics]; renderSetup(); });
+  renderTopicButtons('#topic-grid',SUBJECTS[c.subject].topics,c.topics,topic=>{ c.topics=c.topics.includes(topic)?c.topics.filter(x=>x!==topic):[...c.topics,topic]; updateSetupSummary(); renderTopicsOnly(); });
+  $('#setup-back').addEventListener('click',leaveToHome);
+  $$('#level-toggle [data-level]').forEach(b=>b.addEventListener('click',()=>{ c.level=b.dataset.level; renderSetup(); }));
+  $$('#hard-toggle [data-hard]').forEach(b=>b.addEventListener('click',()=>{ c.hardMode=b.dataset.hard==='true'; renderSetup(); }));
+  $('#max-players').addEventListener('change',e=>{ c.maxPlayers=Number(e.target.value); updateSetupSummary(); });
+  $('#race-count').addEventListener('change',e=>{ c.count=Number(e.target.value); updateSetupSummary(); });
+  $('#race-time').addEventListener('change',e=>{ c.time=Number(e.target.value); updateSetupSummary(); });
+  $('#host-name').addEventListener('input',e=>state.playerName=e.target.value.trim()||'Player');
+  $('#create-room').addEventListener('click',createRoom);
+  updateSetupSummary();
 }
 
-function syncToggleUI(){
-  $$('#level-toggle [data-level]').forEach(b=>b.classList.toggle('selected',b.dataset.level===config.level));
-  $$('#difficulty-toggle [data-hard]').forEach(b=>b.classList.toggle('selected',String(config.hardMode)===b.dataset.hard));
-}
-
-function buildTopics(){
-  const box=$('#topic-list');
-  const subject=SUBJECTS[config.subject];
-  if(!box || !subject) return;
-  box.innerHTML='';
-  subject.topics.forEach(t=>{
-    const b=document.createElement('button');
-    b.type='button';
-    b.className='topic-chip selected';
-    b.textContent=t;
-    b.onclick=()=>{ b.classList.toggle('selected'); syncTopics(); };
-    box.appendChild(b);
+function renderTopicsOnly(){
+  renderTopicButtons('#topic-grid',SUBJECTS[state.config.subject].topics,state.config.topics,topic=>{
+    const c=state.config; c.topics=c.topics.includes(topic)?c.topics.filter(x=>x!==topic):[...c.topics,topic]; renderTopicsOnly(); updateSetupSummary();
   });
-  syncTopics();
 }
-function syncTopics(){ config.topics=$$('#topic-list .topic-chip.selected').map(x=>x.textContent); }
-
-/* ---------------------- question data model ---------------------- */
-function q(topic,prompt,expression,answer,tolerance=0,aliases=[]){
-  return {topic,prompt,expression,answer,tolerance,aliases};
+function renderSubjectButtons(selector,selected,onPick){
+  const root=$(selector); if(!root)return;
+  root.innerHTML=Object.entries(SUBJECTS).map(([key,s])=>`<button class="subject-btn ${key===selected?'selected':''}" data-subject="${key}"><span class="subject-icon">${s.icon}</span><span>${esc(s.short)}</span></button>`).join('');
+  $$('[data-subject]',root).forEach(b=>b.addEventListener('click',()=>onPick(b.dataset.subject)));
 }
-function mcq(topic,prompt,choices,correctIndex){
-  const letters=['A','B','C','D'];
-  return q(topic,`${prompt} Answer A, B, C or D.`,choices.map((c,i)=>`${letters[i]}. ${c}`).join('   '),letters[correctIndex],0,[choices[correctIndex]]);
+function renderTopicButtons(selector,topics,selected,onToggle){
+  const root=$(selector); if(!root)return;
+  root.innerHTML=topics.map(t=>`<button class="chip ${selected.includes(t)?'selected':''}" data-topic="${esc(t)}">${esc(t)}</button>`).join('');
+  $$('[data-topic]',root).forEach(b=>b.addEventListener('click',()=>onToggle(b.dataset.topic)));
 }
-function isHard(){ return !!config.hardMode; }
-function isHL(){ return config.level==='HL'; }
-function maybeHint(normalHint){ return isHard() ? '' : normalHint; }
-
-/* ----------------------- Math AA generator ----------------------- */
-function generateMathAA(topic){
-  let a,b,c,n,x,ans;
-  switch(topic){
-    case 'Algebra':
-      if(isHard() || isHL()){
-        a=rand(2,6); b=rand(-8,8); x=rand(-5,5); c=rand(-10,10);
-        ans=a*x*x+b*x+c;
-        return q(topic,`For f(x) = ${a}x² ${signed(b)}x ${signed(c)}, evaluate f(${x}). Then subtract f(0).`,'',ans-c,0);
-      }
-      a=rand(2,8); b=rand(-12,12); c=rand(-15,15); x=rand(-6,6); ans=a*x*x+b*x+c;
-      return q(topic,`Evaluate the quadratic at x = ${x}.`,`f(x) = ${a}x² ${signed(b)}x ${signed(c)}`,ans,0);
-    case 'Functions':
-      if(isHard()){
-        a=rand(2,6); b=rand(-6,6); c=rand(1,5); x=rand(-4,4); ans=a*(c*x+b);
-        return q(topic,`Let f(x)=${a}x and g(x)=${c}x ${signed(b)}. Find (f∘g)(${x}).`,'',ans,0);
-      }
-      a=rand(2,7); b=rand(-8,8); x=rand(-5,5); ans=a*(x+b);
-      return q(topic,`For f(x) = ${a}(x ${signed(b)}), find f(${x}).`,'',ans,0);
-    case 'Trigonometry': {
-      if(isHard() || isHL()){
-        const opp=rand(3,15), adj=rand(3,15);
-        ans=round(Math.atan2(opp,adj)*180/Math.PI,1);
-        return q(topic,`In a right triangle, relative to angle θ, opposite = ${opp} and adjacent = ${adj}. Find θ in degrees to 1 d.p.`,'',ans,.11);
-      }
-      x=pick([30,45,60]); const trig=pick(['sin','cos']);
-      ans=trig==='sin'?({30:.5,45:Math.SQRT1_2,60:Math.sqrt(3)/2}[x]):({30:Math.sqrt(3)/2,45:Math.SQRT1_2,60:.5}[x]);
-      return q(topic,`Give ${trig}(${x}°) as a decimal to 3 s.f.`,'',round(ans,3),.002);
-    }
-    case 'Calculus':
-      if(isHard()){
-        a=rand(2,5); n=rand(2,4); b=rand(-6,6); x=rand(1,4); ans=a*n*(x**(n-1))+b;
-        return q(topic,`Given f(x)=${a}x^${n} ${signed(b)}x, find f′(${x}).`,'',ans,0);
-      }
-      a=rand(2,7); n=rand(2,5); x=rand(1,4); ans=a*n*(x**(n-1));
-      return q(topic,`Given f(x) = ${a}x^${n}, find f′(${x}).`,'',ans,0);
-    case 'Vectors': {
-      a=rand(-6,6); b=rand(-6,6); c=rand(-6,6);
-      if(a===0 && b===0 && c===0) a=1;
-      let d=rand(-6,6),e=rand(-6,6),f=rand(-6,6);
-      if(d===0 && e===0 && f===0) d=1;
-      if(isHard()){
-        const dot=a*d+b*e+c*f;
-        const mag=Math.sqrt(a*a+b*b+c*c)*Math.sqrt(d*d+e*e+f*f);
-        ans=round(Math.acos(Math.max(-1,Math.min(1,dot/mag)))*180/Math.PI,1);
-        return q(topic,'Find the angle between the vectors, in degrees to 1 d.p.',`⟨${a}, ${b}, ${c}⟩ and ⟨${d}, ${e}, ${f}⟩`,ans,.11);
-      }
-      ans=a*d+b*e+c*f;
-      return q(topic,'Find the dot product of the vectors.',`⟨${a}, ${b}, ${c}⟩ · ⟨${d}, ${e}, ${f}⟩`,ans,0);
-    }
-    case 'Probability & Statistics':
-      if(isHard() || isHL()){
-        const p=pick([0.2,0.25,0.3,0.4,0.5,0.6]); n=rand(3,7); const k=rand(1,n-1);
-        const comb=factorial(n)/(factorial(k)*factorial(n-k));
-        ans=round(comb*(p**k)*((1-p)**(n-k)),4);
-        return q(topic,`X ~ B(${n}, ${p}). Find P(X = ${k}) to 4 d.p.`,'',ans,.00011);
-      }
-      a=rand(2,8); b=rand(2,8); ans=a/(a+b);
-      return q(topic,`A bag has ${a} red and ${b} blue counters. One is chosen at random. Find P(red), to 3 d.p.`,'',round(ans,3),.0015);
-    default: throw new Error(`Unknown Math AA topic: ${topic}`);
-  }
-}
-function factorial(n){ let out=1; for(let i=2;i<=n;i++) out*=i; return out; }
-
-/* ----------------------- Math AI generator ----------------------- */
-function generateMathAI(topic){
-  let a,b,x,ans;
-  switch(topic){
-    case 'Number & Algebra': {
-      const p=rand(3,9), years=rand(2,8), rate=pick([2,3,4,5,6,7])/100;
-      ans=round(p*1000*((1+rate)**years),2);
-      return q(topic,`€${p*1000} grows at ${rate*100}% compound interest for ${years} years. Find the final value to the nearest cent.`,maybeHint('A=P(1+r)ⁿ'),ans,.011);
-    }
-    case 'Functions':
-      a=rand(2,7); b=rand(-8,8); x=rand(-5,5); ans=a*x+b;
-      return q(topic,`A linear model is y=${a}x ${signed(b)}. Predict y when x=${x}.`,'',ans,0);
-    case 'Geometry & Trigonometry': {
-      const r=rand(2,12), deg=pick([30,45,60,90,120,150]);
-      ans=round((deg/360)*Math.PI*r*r,2);
-      return q(topic,`Find the area of a sector with radius ${r} and central angle ${deg}°, to 2 d.p.`,'',ans,.011);
-    }
-    case 'Statistics & Probability': {
-      const vals=Array.from({length:5},()=>rand(2,20));
-      ans=round(vals.reduce((s,v)=>s+v,0)/vals.length,2);
-      if(isHard()){
-        const squared=vals.reduce((s,v)=>s+v*v,0)/vals.length;
-        const mean=vals.reduce((s,v)=>s+v,0)/vals.length;
-        ans=round(Math.sqrt(squared-mean*mean),2);
-        return q(topic,`For the population data ${vals.join(', ')}, find the population standard deviation to 2 d.p.`,'',ans,.011);
-      }
-      return q(topic,`Find the mean of: ${vals.join(', ')}.`,'',ans,.011);
-    }
-    case 'Calculus':
-      a=rand(2,6); b=rand(-6,6); x=rand(1,5); ans=2*a*x+b;
-      return q(topic,`For C(x)=${a}x² ${signed(b)}x + ${rand(1,8)}, find the marginal cost C′(${x}).`,'',ans,0);
-    case 'Financial Mathematics': {
-      const principal=rand(2,12)*1000; const rate=pick([2,2.5,3,3.5,4,5])/100; const years=rand(2,7);
-      ans=round(principal/((1+rate)**years),2);
-      return q(topic,`A payment of €${principal} is due in ${years} years. At ${rate*100}% annual interest, find its present value to 2 d.p.`,'',ans,.011);
-    }
-    default: throw new Error(`Unknown Math AI topic: ${topic}`);
-  }
+function updateSetupSummary(){
+  const c=state.config, bank=matchingRacePool(c);
+  if($('#setup-summary')) $('#setup-summary').innerHTML=`
+    <div class="summary-row"><span>Subject</span><b>${esc(SUBJECTS[c.subject].short)} ${c.level}</b></div>
+    <div class="summary-row"><span>Mode</span><b>${c.hardMode?'🔥 Hard':'Normal'}</b></div>
+    <div class="summary-row"><span>Topics</span><b>${c.topics.length||0} selected</b></div>
+    <div class="summary-row"><span>Lobby</span><b>${c.maxPlayers} players max</b></div>
+    <div class="summary-row"><span>Questions</span><b>${c.count}</b></div>
+    <div class="summary-row"><span>Time</span><b>${c.time?prettyTime(c.time):'∞'}</b></div>`;
+  if($('#setup-bank-note')) $('#setup-bank-note').innerHTML=state.bankStatus.race==='ok'
+    ? `<b>${bank.length}</b> matching race-bank questions available. ${bank.length<c.count?'<br><span style="color:#ffb2be">You need more matching questions or a smaller race.</span>':''}`
+    : `Race bank is not ready. ${esc(state.bankErrors.race||'Check questionbank-config.js.')}`;
 }
 
-/* ------------------------ Physics generator ------------------------ */
-function generatePhysics(topic){
-  let a,b,c,ans;
-  switch(topic){
-    case 'Mechanics':
-      if(isHard() || isHL()){
-        const u=rand(1,12), v=rand(u+1,u+15), t=rand(2,8), m=rand(2,15);
-        ans=round(m*(v-u)/t,2);
-        return q(topic,`A ${m} kg object changes speed uniformly from ${u} to ${v} m s⁻¹ in ${t} s. Find the resultant force in N.`,'',ans,.011);
-      }
-      a=rand(2,20); b=rand(2,12); ans=.5*a*b*b;
-      return q(topic,`A ${a} kg object moves at ${b} m s⁻¹. Find its kinetic energy in joules.`,maybeHint('Eₖ = ½mv²'),ans,.02);
-    case 'Waves':
-      if(isHard()){
-        const f=rand(2,15)*10, wavelength=pick([0.25,0.5,0.75,1.2,1.5,2]);
-        ans=round(f*wavelength,3);
-        return q(topic,`A wave has frequency ${f} Hz and wavelength ${wavelength} m. It enters a medium where its frequency is unchanged and wavelength halves. Find the new wave speed in m s⁻¹.`,'',round(ans/2,3),.011);
-      }
-      a=rand(2,20)*10; b=rand(2,12); ans=a/b;
-      return q(topic,`A wave has speed ${a} m s⁻¹ and frequency ${b} Hz. Find its wavelength in metres.`,maybeHint('v = fλ'),round(ans,3),.01);
-    case 'Fields':
-      if(isHard() || isHL()){
-        const q1=rand(1,8)*1e-6, q2=rand(1,8)*1e-6, r=pick([0.1,0.2,0.25,0.4,0.5]);
-        ans=round(8.99e9*q1*q2/(r*r),3);
-        return q(topic,`Two point charges of ${round(q1*1e6,0)} μC and ${round(q2*1e6,0)} μC are ${r} m apart. Find the electrostatic force magnitude in N. Use k=8.99×10⁹.`,'',ans,.002);
-      }
-      a=rand(2,15); b=rand(1,10); ans=a*b;
-      return q(topic,`A ${a} C charge is in a uniform electric field of ${b} N C⁻¹. Find the force in newtons.`,maybeHint('F = qE'),ans,.01);
-    case 'Electricity':
-      if(isHard()){
-        const r1=rand(2,12), r2=rand(2,12), v=rand(6,24);
-        const req=(r1*r2)/(r1+r2); ans=round(v/req,3);
-        return q(topic,`Resistors ${r1} Ω and ${r2} Ω are connected in parallel across ${v} V. Find the total current in A.`,'',ans,.002);
-      }
-      a=rand(2,24); b=rand(2,12); ans=a/b;
-      return q(topic,`A resistor has ${a} V across it and current ${b} A. Find its resistance in ohms.`,maybeHint('R = V / I'),round(ans,3),.01);
-    case 'Thermal':
-      if(isHard()){
-        const m=rand(1,4), csp=pick([420,900,2100,4200]), dt=rand(10,50), efficiency=pick([0.6,0.7,0.75,0.8,0.9]);
-        ans=round(m*csp*dt/efficiency,1);
-        return q(topic,`${m} kg of material (c=${csp} J kg⁻¹ K⁻¹) is heated by ${dt} K by a heater of efficiency ${efficiency*100}%. Find the electrical energy supplied in J.`,'',ans,.11);
-      }
-      a=rand(1,5); b=rand(5,40); c=4200; ans=a*c*b;
-      return q(topic,`${a} kg of water is heated by ${b} °C. Using c = 4200 J kg⁻¹ K⁻¹, find the energy transferred in joules.`,maybeHint('Q = mcΔT'),ans,1);
-    case 'Nuclear':
-      if(isHard() || isHL()){
-        const half=rand(2,8), time=half*rand(2,5), initial=rand(2,12)*100;
-        ans=round(initial*(0.5**(time/half)),3);
-        return q(topic,`A source has activity ${initial} Bq and half-life ${half} h. Find its activity after ${time} h.`,'',ans,.002);
-      }
-      a=rand(1,4); b=rand(1,5); ans=a*(.5**b);
-      return q(topic,`A sample initially has activity ${a} kBq. After ${b} half-lives, what is its activity in kBq?`,maybeHint('A = A₀(½)ⁿ'),round(ans,4),.0005);
-    default: throw new Error(`Unknown Physics topic: ${topic}`);
+function renderJoin(){
+  $('#screen-join').innerHTML=`
+    <div class="backline"><button class="btn ghost" id="join-back">← Home</button></div>
+    <div class="panel" style="max-width:620px;margin:30px auto">
+      <div class="panel-head"><div><h2>Join a race</h2><p>Enter the six-character room code from the host.</p></div></div>
+      <div class="field" style="margin-bottom:12px"><label>Your name</label><input id="join-name" class="input" maxlength="22" placeholder="e.g. Neil" value="${esc(state.playerName==='Player'?'':state.playerName)}"></div>
+      <div class="field"><label>Room code</label><input id="join-code" class="input" maxlength="6" autocomplete="off" style="text-transform:uppercase;font-size:1.3rem;letter-spacing:.16em;font-weight:900" placeholder="ABC123"></div>
+      <div id="join-error" class="error-text"></div>
+      <button class="btn primary full" id="join-room" style="margin-top:16px">Join room →</button>
+    </div>`;
+  $('#join-back').addEventListener('click',leaveToHome);
+  $('#join-name').addEventListener('input',e=>state.playerName=e.target.value.trim()||'Player');
+  $('#join-code').addEventListener('input',e=>e.target.value=e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6));
+  $('#join-code').addEventListener('keydown',e=>{ if(e.key==='Enter') joinRoom(); });
+  $('#join-room').addEventListener('click',joinRoom);
+  setTimeout(()=>$('#join-code')?.focus(),0);
+}
+
+function renderLobby(){
+  const room=state.room||{}, cfg=room.config||state.config;
+  const players=room.players||{}; const connected=connectedPlayers(room);
+  $('#screen-lobby').innerHTML=`
+    <div class="backline"><button class="btn ghost" id="lobby-leave">← Leave room</button></div>
+    <div class="lobby-grid">
+      <div class="panel">
+        <div class="eyebrow">room code</div><div class="room-code">${esc(state.roomCode||'------')}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px"><button class="btn secondary" id="copy-room">Copy code</button><span class="tag">${esc(SUBJECTS[cfg.subject]?.short||cfg.subject)} ${esc(cfg.level)}</span>${cfg.hardMode?'<span class="tag hard">🔥 HARD</span>':''}<span class="tag">${cfg.count} questions</span></div>
+        <div class="label">Players · ${connected.length}/${cfg.maxPlayers||6}</div>
+        <div class="player-grid">${Array.from({length:cfg.maxPlayers||6},(_,i)=>playerLobbyCard(players[`p${i+1}`],`p${i+1}`)).join('')}</div>
+      </div>
+      <aside class="summary-box">
+        <h3>${state.isHost?'Start when ready':'Waiting for host'}</h3>
+        <p class="muted" style="line-height:1.55;font-size:.84rem">${state.isHost?'You only need two connected players. More players can join until the race starts.':'The host controls the start. Keep this page open.'}</p>
+        <div class="summary-list">
+          <div class="summary-row"><span>Topics</span><b>${cfg.topics?.length||0}</b></div>
+          <div class="summary-row"><span>Timer</span><b>${cfg.time?prettyTime(cfg.time):'∞'}</b></div>
+          <div class="summary-row"><span>Scoring</span><b>${cfg.hardMode?'+2 / −1':'1 per correct'}</b></div>
+        </div>
+        ${state.isHost?`<button class="btn primary full" id="start-race" style="margin-top:16px" ${connected.length<2?'disabled':''}>${connected.length<2?'Waiting for another player…':'Start race →'}</button>`:'<div class="bank-note" style="margin-top:16px">Connected as <b>'+esc(state.playerName)+'</b>.</div>'}
+        <div id="lobby-error" class="error-text"></div>
+      </aside>
+    </div>`;
+  $('#lobby-leave').addEventListener('click',leaveRoom);
+  $('#copy-room').addEventListener('click',async()=>{ try{await navigator.clipboard.writeText(state.roomCode);toast('Room code copied');}catch{toast(`Room code: ${state.roomCode}`);} });
+  $('#start-race')?.addEventListener('click',hostStartRace);
+}
+function playerLobbyCard(player,key){
+  const connected=!!player?.connected;
+  return `<div class="player-card ${connected?'':'empty'}"><div class="player-avatar">${connected?esc((player.name||'?').slice(0,1).toUpperCase()):'?'}</div><b>${connected?esc(player.name||'Player'):'Open slot'}</b><small>${connected?(key===state.playerKey?'You · Ready':'Ready'):'Waiting…'}</small></div>`;
+}
+
+function renderRace(){
+  const q=state.race.questions[state.race.index]; if(!q){ finishLocalRace(); return; }
+  const cfg=state.room?.config||state.config;
+  const subject=SUBJECTS[cfg.subject];
+  $('#screen-race').innerHTML=`
+    <div class="race-layout">
+      <main>
+        <div class="race-top">
+          <div class="race-meta"><span class="tag">${esc(subject?.short||cfg.subject)} ${esc(cfg.level)}</span><span class="tag">${esc(q.topic||'Mixed')}</span>${cfg.hardMode?'<span class="tag hard">🔥 HARD</span>':''}<span class="tag">Q${state.race.index+1}/${state.race.questions.length}</span></div>
+          <div style="display:flex;align-items:center;gap:8px"><button class="btn secondary" id="race-calc">⌨ Calculator</button><span class="timer" id="race-timer">${cfg.time?'--:--':'∞'}</span></div>
+        </div>
+        <section class="question-card">
+          <div class="question-kicker">Difficulty ${q.difficulty}/5 · ${q.type==='mcq'?'multiple choice':q.type||'question'}</div>
+          <div class="question-prompt">${esc(q.prompt)}</div>
+          ${q.expression?`<div class="question-expression">${esc(q.expression)}</div>`:''}
+          <div id="race-answer-area"></div>
+          <div class="question-tools">
+            ${questionHint(q)?`<button class="btn secondary" id="race-hint" ${state.race.hintUsed?'disabled':''}>💡 ${state.race.hintUsed?'Hint used · max 0.6 pt':'Show hint / formula'}</button>`:''}
+          </div>
+          ${state.race.hintUsed?`<div class="hint-box"><b>Hint</b><br>${esc(questionHint(q))}<br><small>This question is now worth 0.6 points if correct.</small></div>`:''}
+          <div id="race-feedback"></div>
+        </section>
+      </main>
+      <aside class="leaderboard"><h3>Live standings</h3><div id="leaderboard-list"></div></aside>
+    </div>`;
+  renderAnswerArea(q,'race');
+  renderLeaderboard();
+  updateRaceTimer();
+  $('#race-calc').addEventListener('click',openCalculator);
+  $('#race-hint')?.addEventListener('click',()=>{ if(state.race.submitted)return; state.race.hintUsed=true; renderRace(); updateOwn({status:`Q${state.race.index+1} · used hint`}).catch(()=>{}); });
+}
+
+function renderAnswerArea(q,mode){
+  const target=mode==='race'?$('#race-answer-area'):$('#practice-answer-area'); if(!target)return;
+  const current=mode==='race'?state.race:state.practice.questions[state.practice.index];
+  const submitted=mode==='race'?state.race.submitted:!!current.submitted;
+  const selected=mode==='race'?state.race.selectedAnswer:current.selectedAnswer;
+  if(Array.isArray(q.options)&&q.options.length){
+    target.innerHTML=`<div class="answer-stack">${q.options.map((opt,i)=>{
+      const letter=String.fromCharCode(65+i); let cls=selected===letter?'selected':'';
+      if(submitted){ const correct=answerIsCorrect(q,letter); if(correct)cls+=' correct'; else if(selected===letter)cls+=' wrong'; }
+      return `<button class="choice ${cls}" data-choice="${letter}" ${submitted?'disabled':''}><span class="choice-letter">${letter}</span><span>${esc(opt)}</span></button>`;
+    }).join('')}</div>${!submitted?'<button class="btn primary" id="submit-choice" disabled>Submit answer</button>':''}`;
+    $$('[data-choice]',target).forEach(b=>b.addEventListener('click',()=>{
+      if(mode==='race'){ state.race.selectedAnswer=b.dataset.choice; renderAnswerArea(q,'race'); }
+      else { current.selectedAnswer=b.dataset.choice; renderAnswerArea(q,'practice'); }
+    }));
+    const submit=$('#submit-choice',target); if(submit){ submit.disabled=!selected; submit.addEventListener('click',()=>mode==='race'?submitRaceAnswer(selected):submitPracticeAnswer(selected)); }
+  } else {
+    const existing=mode==='race'?(state.race.typedAnswer||''):(current.typedAnswer||'');
+    target.innerHTML=`<div class="answer-row"><input class="input" id="typed-answer" autocomplete="off" ${submitted?'disabled':''} value="${esc(existing)}" placeholder="Type your answer…"><button class="btn primary" id="submit-typed" ${submitted?'disabled':''}>Submit</button></div>`;
+    const input=$('#typed-answer',target); input?.addEventListener('input',e=>{ if(mode==='race') state.race.typedAnswer=e.target.value; else current.typedAnswer=e.target.value; });
+    input?.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!submitted){ e.preventDefault(); mode==='race'?submitRaceAnswer(input.value):submitPracticeAnswer(input.value); } });
+    $('#submit-typed',target)?.addEventListener('click',()=>mode==='race'?submitRaceAnswer(input?.value||''):submitPracticeAnswer(input?.value||''));
+    if(mode==='race'&&!submitted) setTimeout(()=>input?.focus(),0);
   }
 }
 
-/* ----------------------- Chemistry generator ----------------------- */
-function generateChemistry(topic){
-  switch(topic){
-    case 'Stoichiometry': {
-      const moles=pick([0.1,0.2,0.25,0.5,0.75,1.2]); const mr=rand(20,180);
-      return q(topic,`A sample contains ${moles} mol of a substance with Mᵣ=${mr}. Find its mass in g.`,maybeHint('m = nM'),round(moles*mr,3),.002);
-    }
-    case 'Atomic Structure': {
-      const z=rand(3,20), mass=z+rand(1,24), charge=pick([-1,0,1,2]);
-      const electrons=z-charge;
-      return q(topic,`An ion has atomic number ${z}, mass number ${mass}, and charge ${charge>=0?'+':''}${charge}. How many electrons does it contain?`,'',electrons,0);
-    }
-    case 'Bonding':
-      return mcq(topic,'Which species is expected to have the strongest intermolecular forces?',
-        isHard()?['CH₄','HCl','NH₃','H₂O']:['Ne','CH₄','H₂O','CO₂'],
-        isHard()?3:2);
-    case 'Energetics': {
-      const broken=rand(200,700), formed=rand(300,900);
-      const ans=broken-formed;
-      return q(topic,`Total bond enthalpy required to break bonds is ${broken} kJ mol⁻¹; total released on bond formation is ${formed} kJ mol⁻¹. Estimate ΔH in kJ mol⁻¹.`,maybeHint('ΔH = bonds broken − bonds formed'),ans,.01);
-    }
-    case 'Kinetics': {
-      const c1=pick([0.1,0.2,0.25,0.5]), c2=round(c1*2,2);
-      if(isHard()) return q(topic,`Doubling [A] from ${c1} to ${c2} mol dm⁻³ causes rate to increase by a factor of 4. What is the order with respect to A?`,'',2,0);
-      return mcq(topic,'Which change normally increases reaction rate without changing the equilibrium constant?',['Lower temperature','Add a catalyst','Decrease concentration','Increase activation energy'],1);
-    }
-    case 'Equilibrium': {
-      const aConc=pick([0.2,0.4,0.5,0.8]);
-      const ratio=rand(2,5);
-      const bConc=round(aConc*ratio,2);
-      return q(topic,`For A ⇌ B, an equilibrium mixture contains [A]=${aConc} mol dm⁻³ and [B]=${bConc} mol dm⁻³. Find Kc=[B]/[A].`,'',round(bConc/aConc,3),.002);
-    }
-    case 'Acids & Bases': {
-      const ph=rand(1,6);
-      if(isHard() || isHL()){
-        const h=10**(-ph); return q(topic,`A strong monoprotic acid has pH ${ph}. Find [H⁺] in mol dm⁻³. Enter in scientific notation or decimal.`,'',h,Math.max(1e-12,h*0.002));
+function submitRaceAnswer(raw){
+  if(state.race.submitted)return;
+  const q=state.race.questions[state.race.index]; if(!q)return;
+  const ok=answerIsCorrect(q,raw); const cfg=state.room?.config||state.config;
+  let delta=0;
+  if(ok) delta=state.race.hintUsed?0.6:(cfg.hardMode?2:1);
+  else delta=cfg.hardMode?-1:0;
+  state.race.score=round(Math.max(0,state.race.score+delta),2);
+  state.race.submitted=true;
+  state.race.answered.push({id:q.id,topic:q.topic,ok,raw,answer:displayAnswer(q),delta,hintUsed:state.race.hintUsed});
+  updateOwn({score:state.race.score,status:ok?`Q${state.race.index+1} correct +${delta}`:`Q${state.race.index+1} submitted`,question:state.race.index+1}).catch(()=>{});
+  renderRace();
+  const fb=$('#race-feedback'); if(fb) fb.innerHTML=`<div class="feedback ${ok?'good':'bad'}"><b>${ok?'Correct ✓':`Incorrect · ${delta<0?'−1 point':'0 points'}`}</b>${ok&&state.race.hintUsed?'<br>Hint used: +0.6 points.':''}${!ok?`<br>Correct answer: ${esc(displayAnswer(q))}`:''}</div>`;
+  setTimeout(()=>{ state.race.index++; state.race.hintUsed=false; state.race.submitted=false; state.race.selectedAnswer=''; state.race.typedAnswer=''; if(state.race.index>=state.race.questions.length)finishLocalRace(); else { updateOwn({status:`On Q${state.race.index+1}`,question:state.race.index+1}).catch(()=>{}); renderRace(); } },900);
+}
+
+function renderLeaderboard(){
+  const root=$('#leaderboard-list'); if(!root)return;
+  const cfg=state.room?.config||state.config; const max=cfg.hardMode?cfg.count*2:cfg.count;
+  const players=connectedPlayers(state.room).sort((a,b)=>(Number(b.score)||0)-(Number(a.score)||0)||String(a.name).localeCompare(String(b.name)));
+  root.innerHTML=players.map((p,i)=>`<div class="leader-row"><span class="rank">#${i+1}</span><div class="leader-name"><b>${esc(p.name||'Player')}${p.key===state.playerKey?'<span class="you-pill">YOU</span>':''}</b><small>${esc(p.status||'Ready')}</small><div class="progress"><span style="width:${clamp(((Number(p.score)||0)/Math.max(1,max))*100,0,100)}%"></span></div></div><span class="leader-score">${formatScore(p.score||0)}</span></div>`).join('') || '<div class="muted">No players.</div>';
+}
+function formatScore(n){ n=Number(n)||0; return Number.isInteger(n)?String(n):String(round(n,1)); }
+
+function finishLocalRace(){
+  clearInterval(state.race.timer); state.race.timer=null;
+  updateOwn({finished:true,status:'Finished',score:state.race.score,question:state.race.questions.length}).catch(()=>{});
+  renderResults(); setScreen('results');
+}
+function renderResults(){
+  const players=connectedPlayers(state.room).sort((a,b)=>(Number(b.score)||0)-(Number(a.score)||0));
+  const me=players.find(p=>p.key===state.playerKey); const rank=Math.max(1,players.findIndex(p=>p.key===state.playerKey)+1);
+  const allFinished=players.length>0&&players.every(p=>p.finished);
+  $('#screen-results').innerHTML=`
+    <div class="panel">
+      <div class="result-hero"><div class="result-icon">${rank===1?'🏆':'⚡'}</div><div class="eyebrow">race complete</div><h2>${rank===1?'You are currently #1':`You finished #${rank}`}</h2><p class="muted">Your score: <b style="color:var(--text)">${formatScore(me?.score??state.race.score)}</b></p></div>
+      <div class="podium">${players.slice(0,3).map((p,i)=>`<div class="podium-card"><div style="font-size:1.5rem">${['🥇','🥈','🥉'][i]}</div><b>${esc(p.name)}</b><div style="font-size:1.5rem;font-weight:950;margin-top:8px">${formatScore(p.score)}</div><small class="muted">${esc(p.status||'')}</small></div>`).join('')}</div>
+      <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap"><button class="btn secondary" id="results-home">Leave room</button>${state.isHost?`<button class="btn primary" id="rematch" ${allFinished?'':'disabled'}>${allFinished?'Rematch →':'Waiting for everyone…'}</button>`:''}</div>
+      <div class="review-list">${state.race.answered.map((a,i)=>`<div class="review-item"><span class="review-mark ${a.ok?'ok':'no'}">${a.ok?'✓':'×'}</span><span><b>Q${i+1} · ${esc(a.topic||'')}</b><br><small class="muted">Your answer: ${esc(a.raw||'—')}${a.hintUsed?' · hint used':''}</small></span><span style="font-weight:900">${a.delta>0?'+':''}${formatScore(a.delta)}</span></div>`).join('')}</div>
+    </div>`;
+  $('#results-home').addEventListener('click',leaveRoom);
+  $('#rematch')?.addEventListener('click',hostRematch);
+}
+
+function renderPractice(){
+  const c=state.practiceConfig;
+  $('#screen-practice').innerHTML=`
+    <div class="backline"><button class="btn ghost" id="practice-back">← Home</button></div>
+    <div class="practice-layout">
+      <aside class="sidebar">
+        <div class="label">Subject</div><select id="practice-subject" class="select">${Object.entries(SUBJECTS).map(([k,s])=>`<option value="${k}" ${c.subject===k?'selected':''}>${esc(s.short)}</option>`).join('')}</select>
+        <div class="setup-section" style="margin-top:14px"><div class="label">Level</div><div class="segmented" id="practice-level"><button class="seg-btn ${c.level==='SL'?'selected':''}" data-level="SL">SL</button><button class="seg-btn ${c.level==='HL'?'selected':''}" data-level="HL">HL</button></div></div>
+        <div class="setup-section"><div class="label">Difficulty</div><select id="practice-difficulty" class="select"><option value="mixed">Mixed 1–5</option>${[1,2,3,4,5].map(n=>`<option value="${n}" ${String(c.difficulty)===String(n)?'selected':''}>${n} · ${['Foundation','Standard','Challenging','Hard','Brutal'][n-1]}</option>`).join('')}</select></div>
+        <div class="setup-section"><div class="label">Topic</div><select id="practice-topic" class="select"><option>All topics</option>${SUBJECTS[c.subject].topics.map(t=>`<option ${c.topic===t?'selected':''}>${esc(t)}</option>`).join('')}</select></div>
+        <div class="setup-section"><div class="label">Questions</div><select id="practice-count" class="select">${[5,10,15,20,30].map(n=>`<option value="${n}" ${c.count===n?'selected':''}>${n}</option>`).join('')}</select></div>
+        <div id="practice-pool" class="bank-note"></div>
+        <button class="btn primary full" id="practice-start" style="margin-top:14px">Start practice →</button>
+      </aside>
+      <main class="practice-workspace" id="practice-workspace"></main>
+    </div>`;
+  $('#practice-back').addEventListener('click',()=>{ stopPracticeTimer(); renderHome(); setScreen('home'); });
+  $('#practice-subject').addEventListener('change',e=>{ c.subject=e.target.value; c.topic='All topics'; renderPractice(); });
+  $$('#practice-level [data-level]').forEach(b=>b.addEventListener('click',()=>{ c.level=b.dataset.level; renderPractice(); }));
+  $('#practice-difficulty').addEventListener('change',e=>{ c.difficulty=e.target.value; renderPracticePoolInfo(); });
+  $('#practice-topic').addEventListener('change',e=>{ c.topic=e.target.value; renderPracticePoolInfo(); });
+  $('#practice-count').addEventListener('change',e=>{ c.count=Number(e.target.value); renderPracticePoolInfo(); });
+  $('#practice-start').addEventListener('click',startPractice);
+  renderPracticePoolInfo();
+  if(state.practice.active) renderPracticeQuestion(); else renderPracticeEmpty();
+}
+function renderPracticePoolInfo(){
+  const pool=matchingPracticePool(state.practiceConfig); const el=$('#practice-pool'); if(!el)return;
+  el.innerHTML=state.bankStatus.practice==='ok'?`<b>${pool.length}</b> matching questions in the separate practice bank.${pool.length<state.practiceConfig.count?'<br><span style="color:#ffb2be">Choose fewer questions or add more to the bank.</span>':''}`:`Practice bank unavailable.<br>${esc(state.bankErrors.practice||'Check questionbank-config.js.')}`;
+}
+function renderPracticeEmpty(){
+  $('#practice-workspace').innerHTML=`<div class="question-card empty-state"><div><div class="big">◎</div><h3>Build a focused set</h3><p>This practice area reads from a completely different question-bank URL than multiplayer races.</p><button class="btn primary" id="practice-quick">Start with these filters</button></div></div>`;
+  $('#practice-quick').addEventListener('click',startPractice);
+}
+function startPractice(){
+  const pool=matchingPracticePool(state.practiceConfig); const count=state.practiceConfig.count;
+  if(pool.length<count){ toast(`Only ${pool.length} matching practice questions. Need ${count}.`); return; }
+  state.practice.active=true; state.practice.questions=shuffle(pool).slice(0,count).map(q=>({...q,submitted:false,selectedAnswer:'',typedAnswer:'',flagged:false,hintShown:false,userAnswer:''})); state.practice.index=0; state.practice.startedAt=Date.now();
+  clearInterval(state.practice.timer); state.practice.timer=setInterval(updatePracticeLiveStats,1000); renderPracticeQuestion();
+}
+function renderPracticeQuestion(){
+  const q=state.practice.questions[state.practice.index]; if(!q){renderPracticeSummary();return;}
+  const attempted=state.practice.questions.filter(x=>x.submitted).length, correct=state.practice.questions.filter(x=>x.submitted&&x._correct).length;
+  const elapsed=Math.floor((Date.now()-state.practice.startedAt)/1000);
+  $('#practice-workspace').innerHTML=`
+    <div class="session-header"><div class="race-meta"><span class="tag">${esc(SUBJECTS[q.subject]?.short||q.subject)} ${esc(state.practiceConfig.level)}</span><span class="tag">${esc(q.topic||'Mixed')}</span><span class="tag">Difficulty ${q.difficulty}/5</span></div><div class="session-stats"><span class="stat-pill"><b id="practice-correct">${correct}</b> correct</span><span class="stat-pill"><b id="practice-attempted">${attempted}</b> attempted</span><span class="stat-pill" id="practice-clock">${prettyTime(elapsed)}</span></div></div>
+    <section class="question-card">
+      <div class="question-kicker">Question ${state.practice.index+1} of ${state.practice.questions.length}</div>
+      <div class="question-prompt">${esc(q.prompt)}</div>${q.expression?`<div class="question-expression">${esc(q.expression)}</div>`:''}
+      <div id="practice-answer-area"></div>
+      <div class="question-tools">${questionHint(q)?`<button class="btn secondary" id="practice-hint">💡 ${q.hintShown?'Hint shown':'Show hint / formula'}</button>`:''}<button class="btn secondary" id="practice-flag">${q.flagged?'⚑ Flagged':'⚐ Flag'}</button><button class="btn secondary" id="practice-calc">⌨ Calculator</button></div>
+      ${q.hintShown?`<div class="hint-box"><b>Hint</b><br>${esc(questionHint(q))}</div>`:''}
+      ${q.submitted?`<div class="feedback ${q._correct?'good':'bad'}"><b>${q._correct?'Correct ✓':'Incorrect'}</b>${!q._correct?`<br>Correct answer: ${esc(displayAnswer(q))}`:''}${q.explanation?`<br><br>${esc(q.explanation)}`:''}</div>`:''}
+      <div class="nav-dots" id="practice-nav">${state.practice.questions.map((x,i)=>`<button class="qdot ${i===state.practice.index?'current':''} ${x.submitted?(x._correct?'correct':'wrong'):''} ${x.flagged?'flagged':''}" data-index="${i}">${i+1}</button>`).join('')}</div>
+      <div style="display:flex;justify-content:space-between;gap:8px;margin-top:18px;flex-wrap:wrap"><button class="btn secondary" id="practice-prev" ${state.practice.index===0?'disabled':''}>← Previous</button><div style="display:flex;gap:8px"><button class="btn danger" id="practice-finish">Finish set</button><button class="btn primary" id="practice-next">${state.practice.index===state.practice.questions.length-1?'Finish':'Next →'}</button></div></div>
+    </section>`;
+  renderAnswerArea(q,'practice');
+  $('#practice-hint')?.addEventListener('click',()=>{q.hintShown=true;renderPracticeQuestion();});
+  $('#practice-flag').addEventListener('click',()=>{q.flagged=!q.flagged;renderPracticeQuestion();});
+  $('#practice-calc').addEventListener('click',openCalculator);
+  $('#practice-prev').addEventListener('click',()=>{state.practice.index--;renderPracticeQuestion();});
+  $('#practice-next').addEventListener('click',()=>{ if(state.practice.index>=state.practice.questions.length-1) renderPracticeSummary(); else {state.practice.index++;renderPracticeQuestion();} });
+  $('#practice-finish').addEventListener('click',renderPracticeSummary);
+  $$('#practice-nav [data-index]').forEach(b=>b.addEventListener('click',()=>{state.practice.index=Number(b.dataset.index);renderPracticeQuestion();}));
+}
+function submitPracticeAnswer(raw){
+  const q=state.practice.questions[state.practice.index]; if(!q||q.submitted)return;
+  q.userAnswer=raw; q.submitted=true; q._correct=answerIsCorrect(q,raw); renderPracticeQuestion();
+}
+function updatePracticeLiveStats(){
+  if(state.screen!=='practice'||!state.practice.active)return;
+  const clock=$('#practice-clock'); if(clock) clock.textContent=prettyTime(Math.floor((Date.now()-state.practice.startedAt)/1000));
+}
+function renderPracticeSummary(){
+  stopPracticeTimer(); const qs=state.practice.questions; const attempted=qs.filter(q=>q.submitted).length,correct=qs.filter(q=>q.submitted&&q._correct).length;
+  const pct=attempted?Math.round(correct/attempted*100):0;
+  $('#practice-workspace').innerHTML=`<div class="panel result-hero"><div class="result-icon">◎</div><div class="eyebrow">practice complete</div><h2>${pct}% accuracy</h2><p class="muted">${correct} correct · ${attempted} attempted · ${qs.length-attempted} skipped</p><div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap"><button class="btn secondary" id="practice-new">New set</button><button class="btn primary" id="practice-review">Review questions</button></div></div><div class="review-list">${qs.map((q,i)=>`<div class="review-item"><span class="review-mark ${q.submitted?(q._correct?'ok':'no'):''}">${q.submitted?(q._correct?'✓':'×'):'—'}</span><span><b>Q${i+1} · ${esc(q.topic)}</b><br><small class="muted">${esc(q.prompt.slice(0,90))}${q.prompt.length>90?'…':''}</small></span><span>${q.flagged?'⚑':''}</span></div>`).join('')}</div>`;
+  $('#practice-new').addEventListener('click',()=>{state.practice.active=false;renderPractice();});
+  $('#practice-review').addEventListener('click',()=>{state.practice.index=0;renderPracticeQuestion();});
+}
+function stopPracticeTimer(){ clearInterval(state.practice.timer); state.practice.timer=null; }
+
+/* ------------------------- QUESTION BANK ------------------------- */
+async function loadQuestionBanks(){
+  await Promise.all(['race','practice'].map(async kind=>{
+    const source=window.IBRACE_QUESTION_BANKS?.[kind];
+    if(!source){ state.bankStatus[kind]='error'; state.bankErrors[kind]=`No ${kind} URL configured.`; return; }
+    try{
+      const primary=typeof source==='string'?source:source.url;
+      const fallback=typeof source==='object'?source.fallback:null;
+      let res; let primaryError=null;
+      try{
+        res=await fetch(primary,{cache:'no-store'});
+        if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      }catch(err){
+        primaryError=err;
+        if(!fallback) throw err;
+        res=await fetch(fallback,{cache:'no-store'});
+        if(!res.ok) throw new Error(`Remote bank failed (${String(primaryError?.message||primaryError)}); fallback HTTP ${res.status}`);
       }
-      return q(topic,`A solution has [H⁺] = 1×10⁻${ph} mol dm⁻³. Find its pH.`,'',ph,0);
-    }
-    case 'Redox': {
-      const charge=pick([1,2,3]);
-      return q(topic,`An atom loses ${charge} electron${charge===1?'':'s'}. What charge does the resulting ion have? Enter the signed integer.`,'',charge,0,[`+${charge}`]);
-    }
-    case 'Organic':
-      return mcq(topic,'Which functional group defines an alcohol?',['–CHO','–COOH','–OH','–NH₂'],2);
-    default: throw new Error(`Unknown Chemistry topic: ${topic}`);
-  }
+      const data=await res.json(); const raw=Array.isArray(data)?data:data?.questions;
+      if(!Array.isArray(raw)) throw new Error('Expected an array or {questions:[…]}.');
+      const normalized=[]; const ids=new Set();
+      raw.forEach((q,i)=>{
+        const nq=normalizeQuestion(q,kind,i);
+        if(ids.has(nq.id)) throw new Error(`Duplicate question id: ${nq.id}`);
+        ids.add(nq.id); normalized.push(nq);
+      });
+      state.banks[kind]=normalized; state.bankStatus[kind]='ok'; state.bankErrors[kind]='';
+    }catch(err){ state.bankStatus[kind]='error'; state.bankErrors[kind]=String(err?.message||err); }
+  }));
+  updateBankIndicator();
+  if(state.screen==='setup') updateSetupSummary();
+  if(state.screen==='practice') renderPracticePoolInfo();
+}
+function normalizeQuestion(q,kind,index){
+  if(!q||typeof q!=='object') throw new Error(`${kind} question ${index+1} is not an object.`);
+  const id=String(q.id||`${kind}-${index+1}`); const subject=String(q.subject||'');
+  if(!SUBJECTS[subject]) throw new Error(`${id}: unknown subject "${subject}".`);
+  const levels=levelsFor(q); if(!levels.some(l=>['SL','HL','Both'].includes(l))) throw new Error(`${id}: level must be SL, HL, Both, or an array.`);
+  const topics=topicsFor(q); if(!topics.length) throw new Error(`${id}: missing topic.`);
+  const difficulty=clamp(Number(q.difficulty)||3,1,5); if(!String(q.prompt||'').trim()) throw new Error(`${id}: missing prompt.`);
+  if(q.answer===undefined||q.answer===null) throw new Error(`${id}: missing answer.`);
+  const options=Array.isArray(q.options)?q.options.map(String):null;
+  const type=q.type||(options?'mcq':typeof q.answer==='number'?'numeric':'text');
+  return {...q,id,subject,level:levels,topics,topic:String(q.topic||topics[0]),difficulty,prompt:String(q.prompt),expression:String(q.expression||''),type,options,
+    aliases:Array.isArray(q.aliases)?q.aliases:[],tolerance:Number(q.tolerance)||0,explanation:String(q.explanation||''),bank:kind};
+}
+function questionMatchesLevel(q,level){ const ls=levelsFor(q); return ls.includes('Both')||ls.includes(level); }
+function questionMatchesTopics(q,selected){ return topicsFor(q).some(t=>selected.includes(t)); }
+function matchingRacePool(c=state.config){
+  return state.banks.race.filter(q=>q.subject===c.subject&&questionMatchesLevel(q,c.level)&&questionMatchesTopics(q,c.topics)&&Number(q.difficulty)>=(c.hardMode?4:1)&&Number(q.difficulty)<=(c.hardMode?5:3));
+}
+function matchingPracticePool(c=state.practiceConfig){
+  return state.banks.practice.filter(q=>q.subject===c.subject&&questionMatchesLevel(q,c.level)&&(c.topic==='All topics'||topicsFor(q).includes(c.topic))&&(c.difficulty==='mixed'||Number(q.difficulty)===Number(c.difficulty)));
+}
+function chooseRaceQuestions(count,excludeIds=[]){
+  const pool=matchingRacePool(state.config); if(pool.length<count) throw new Error(`Only ${pool.length} matching race questions are available; ${count} requested.`);
+  const excluded=new Set(excludeIds||[]); const fresh=shuffle(pool.filter(q=>!excluded.has(q.id))), old=shuffle(pool.filter(q=>excluded.has(q.id)));
+  return [...fresh,...old].slice(0,count).map(q=>stripLocalFields(q));
+}
+function stripLocalFields(q){ const out={...q}; delete out.bank; return out; }
+function updateBankIndicator(){
+  const dot=$('#bank-dot'),label=$('#bank-status'); if(!dot||!label)return;
+  const statuses=Object.values(state.bankStatus);
+  dot.className='status-dot '+(statuses.every(x=>x==='ok')?'ok':statuses.some(x=>x==='error')?'bad':'');
+  label.textContent=statuses.every(x=>x==='ok')?`${state.banks.race.length} race · ${state.banks.practice.length} practice questions`:statuses.some(x=>x==='error')?'Question bank connection issue':'Loading question banks…';
 }
 
-/* ------------------------ Biology generator ------------------------ */
-function generateBiology(topic){
-  switch(topic){
-    case 'Cell Biology':
-      return mcq(topic,'Which structure is present in prokaryotic cells?',['Nucleus','80S ribosomes','70S ribosomes','Mitochondria'],2);
-    case 'Molecular Biology':
-      return mcq(topic,'Which base pairs with adenine in DNA?',['Uracil','Cytosine','Guanine','Thymine'],3);
-    case 'Genetics': {
-      if(isHard() || isHL()){
-        return q(topic,'In a monohybrid cross Aa × Aa, what percentage of offspring are expected to show the recessive phenotype?','',25,.01,['25%']);
-      }
-      return q(topic,'In a monohybrid cross Aa × aa, what percentage of offspring are expected to have genotype aa?','',50,.01,['50%']);
-    }
-    case 'Metabolism':
-      return mcq(topic,'Which molecule is the immediate energy currency of the cell?',['DNA','ATP','Glucose','NADP'],1);
-    case 'Ecology': {
-      const captured=rand(20,80), marked2=rand(20,80), recaptured=rand(5,Math.min(captured,marked2));
-      const ans=round(captured*marked2/recaptured,1);
-      return q(topic,`Lincoln index: ${captured} animals are marked first. Later ${marked2} are caught, of which ${recaptured} are marked. Estimate population size to 1 d.p.`,'',ans,.11);
-    }
-    case 'Evolution':
-      return mcq(topic,'Natural selection directly acts on differences in which property?',['Genotype frequency only','Phenotype','Mutation rate','Species age'],1);
-    case 'Human Physiology':
-      if(isHard()) return mcq(topic,'Where does ultrafiltration of blood occur in the nephron?',['Loop of Henle','Collecting duct','Glomerulus/Bowman’s capsule','Distal convoluted tubule'],2);
-      return mcq(topic,'Which chamber pumps oxygenated blood into the systemic circulation?',['Right atrium','Right ventricle','Left atrium','Left ventricle'],3);
-    default: throw new Error(`Unknown Biology topic: ${topic}`);
-  }
+/* ------------------------- FIREBASE ------------------------- */
+function firebaseReady(){ const c=window.IBRACE_FIREBASE_CONFIG; return !!(window.firebase&&c&&c.apiKey&&c.databaseURL&&!String(c.apiKey).includes('PASTE_')); }
+function db(){ if(state.firebaseDb)return state.firebaseDb; if(!firebaseReady()) throw new Error('Firebase is not configured. Add firebase-config.js with your web config.'); if(!firebase.apps.length) firebase.initializeApp(window.IBRACE_FIREBASE_CONFIG); state.firebaseDb=firebase.database(); return state.firebaseDb; }
+async function roomExists(code){ const snap=await db().ref(`rooms/${code}`).once('value'); return snap.exists(); }
+async function uniqueRoomCode(){ for(let i=0;i<15;i++){const code=safeCode();if(!(await roomExists(code)))return code;} throw new Error('Could not create a unique room code. Try again.'); }
+function firebaseMessage(err){ const m=String(err?.message||err); if(/permission/i.test(m))return 'Firebase denied the request. Update Realtime Database rules for rooms.'; return m; }
+function detachRoom(){ if(state.roomRef&&state.roomListener) state.roomRef.off('value',state.roomListener); state.roomRef=null; state.roomListener=null; }
+function attachRoom(code){ detachRoom(); state.roomRef=db().ref(`rooms/${code}`); state.roomListener=s=>syncRoom(s.val()); state.roomRef.on('value',state.roomListener,err=>toast(firebaseMessage(err))); }
+async function updateOwn(patch){ if(!state.roomRef||!state.playerKey)return; await state.roomRef.child(`players/${state.playerKey}`).update(patch); }
+function connectedPlayers(room=state.room){ return Object.entries(room?.players||{}).filter(([,p])=>p?.connected).map(([key,p])=>({...p,key})); }
+
+async function createRoom(){
+  const err=$('#setup-error'); if(err)err.textContent='';
+  try{
+    if(state.bankStatus.race!=='ok') throw new Error(`Race question bank is unavailable: ${state.bankErrors.race||'not loaded'}`);
+    if(!state.config.topics.length) throw new Error('Select at least one topic.');
+    state.playerName=$('#host-name')?.value.trim()||state.playerName||'Host';
+    state.config.maxPlayers=Number($('#max-players')?.value)||6; state.config.count=Number($('#race-count')?.value)||10; state.config.time=Number($('#race-time')?.value)||0;
+    const questions=chooseRaceQuestions(state.config.count,[]); const code=await uniqueRoomCode(); const ref=db().ref(`rooms/${code}`);
+    const now=firebase.database.ServerValue.TIMESTAMP;
+    await ref.set({status:'lobby',round:1,createdAt:now,config:{...state.config},questions,recentQuestionIds:questions.map(q=>q.id),players:{p1:{name:state.playerName,connected:true,score:0,status:'Ready',finished:false,question:0,sessionId:state.sessionId,joinedAt:now}}});
+    state.roomCode=code; state.playerKey='p1'; state.isHost=true; await ref.child('players/p1').onDisconnect().update({connected:false,status:'Disconnected'}); setScreen('lobby'); attachRoom(code);
+  }catch(e){ if(err)err.textContent=firebaseMessage(e); }
 }
 
-/* ----------------------- Economics generator ----------------------- */
-function generateEconomics(topic){
-  switch(topic){
-    case 'Microeconomics': {
-      if(isHard() || isHL()){
-        const q1=rand(80,140), q2=rand(40,75), p1=rand(8,14), p2=p1+rand(2,6);
-        const ped=((q2-q1)/((q1+q2)/2))/((p2-p1)/((p1+p2)/2));
-        return q(topic,`Price rises from ${p1} to ${p2}; quantity demanded falls from ${q1} to ${q2}. Using the midpoint method, find PED to 2 d.p. Keep the sign.`,'',round(ped,2),.011);
-      }
-      const units=rand(20,80), p=rand(2,12);
-      return q(topic,`A firm sells ${units} units at €${p} each. Find total revenue in €.`,'',units*p,0);
-    }
-    case 'Macroeconomics': {
-      const nominal=rand(200,900), deflator=pick([90,95,100,105,110,120,125]);
-      return q(topic,`Nominal GDP is ${nominal} billion and the GDP deflator is ${deflator}. Find real GDP in billions to 2 d.p.`,'Real GDP = nominal GDP ÷ (deflator/100)',round(nominal/(deflator/100),2),.011);
-    }
-    case 'Global Economy': {
-      const old=pick([1.05,1.1,1.2,1.25]), now=round(old*pick([0.8,0.9,1.1,1.2]),2);
-      return mcq(topic,`The exchange rate moves from 1 EUR = ${old} USD to 1 EUR = ${now} USD. Relative to the USD, the euro has…`,
-        now>old?['appreciated','depreciated','experienced inflation','become a tariff']:['depreciated','appreciated','experienced deflation','become a quota'],0);
-    }
-    case 'Development':
-      return mcq(topic,'Which variable is directly included in the Human Development Index?',['Military spending','Life expectancy','Trade balance','Inflation rate'],1);
-    default: throw new Error(`Unknown Economics topic: ${topic}`);
-  }
+async function joinRoom(){
+  const error=$('#join-error'); if(error)error.textContent='';
+  try{
+    state.playerName=$('#join-name')?.value.trim()||state.playerName||'Player'; const code=String($('#join-code')?.value||'').trim().toUpperCase();
+    if(!/^[A-Z0-9]{6}$/.test(code)) throw new Error('Enter the full six-character room code.');
+    const ref=db().ref(`rooms/${code}`); const pre=await ref.once('value'); if(!pre.exists()) throw new Error('Room not found.');
+    let reason='Room is full.';
+    const tx=await ref.transaction(room=>{
+      if(!room){reason='Room not found.';return;}
+      if(room.status!=='lobby'){reason='That race has already started.';return;}
+      const max=Number(room.config?.maxPlayers)||6; room.players=room.players||{};
+      let slot=null; for(let i=2;i<=max;i++){const k=`p${i}`;if(!room.players[k]?.connected){slot=k;break;}}
+      if(!slot){reason='This room is full.';return;}
+      room.players[slot]={name:state.playerName,connected:true,score:0,status:'Ready',finished:false,question:0,sessionId:state.sessionId,joinedAt:Date.now()};
+      return room;
+    },undefined,false);
+    if(!tx.committed) throw new Error(reason);
+    const joined=tx.snapshot.val(); const entry=Object.entries(joined.players||{}).find(([,p])=>p?.sessionId===state.sessionId);
+    if(!entry) throw new Error('Joined room, but could not identify your player slot. Refresh and try again.');
+    state.roomCode=code; state.playerKey=entry[0]; state.isHost=false; await ref.child(`players/${state.playerKey}`).onDisconnect().update({connected:false,status:'Disconnected'}); setScreen('lobby'); attachRoom(code);
+  }catch(e){ if(error)error.textContent=firebaseMessage(e); }
 }
 
-/* --------------------------- ESS generator --------------------------- */
-function generateESS(topic){
-  switch(topic){
-    case 'Ecosystems': {
-      const input=rand(500,2000), output=rand(30,200);
-      return q(topic,`A trophic level receives ${input} kJ m⁻² yr⁻¹ and transfers ${output} kJ m⁻² yr⁻¹ to the next level. Find ecological efficiency (%) to 1 d.p.`,'',round(100*output/input,1),.11,['%']);
-    }
-    case 'Biodiversity':
-      return mcq(topic,'Which index increases when both species richness and evenness increase?',['Biochemical oxygen demand','Simpson diversity index','Carbon footprint','Ecological footprint'],1);
-    case 'Pollution':
-      return mcq(topic,'Which process most directly causes eutrophication in freshwater?',['Nutrient enrichment','Ozone depletion','Thermal inversion','Desertification'],0);
-    case 'Climate Change': {
-      const initial=rand(100,500), pct=rand(5,30);
-      return q(topic,`Annual emissions fall from ${initial} Mt by ${pct}%. Find the new emissions level in Mt.`,'',round(initial*(1-pct/100),2),.011);
-    }
-    case 'Water & Food': {
-      const used=rand(200,900), replenished=rand(100,700);
-      return q(topic,`A groundwater store receives ${replenished} million m³ yr⁻¹ but withdrawals are ${used} million m³ yr⁻¹. Find the annual net change in storage (recharge − withdrawal).`,'',replenished-used,0);
-    }
-    case 'Energy & Resources': {
-      const input=rand(100,1000), eff=pick([20,25,30,35,40,45])/100;
-      return q(topic,`A power system receives ${input} MJ and operates at ${eff*100}% efficiency. Find useful output energy in MJ.`,'',round(input*eff,2),.011);
-    }
-    case 'Sustainability':
-      return mcq(topic,'Which action most directly represents a circular-economy strategy?',['Landfilling usable materials','Designing products for repair and reuse','Increasing single-use packaging','Extracting more virgin raw material'],1);
-    default: throw new Error(`Unknown ESS topic: ${topic}`);
-  }
+function syncRoom(room){
+  if(!room){ toast('Room closed.'); leaveToHome(); return; }
+  state.room=room;
+  if(room.config) state.config={...state.config,...room.config};
+  if(state.screen==='lobby') renderLobby();
+  if(state.screen==='race') renderLeaderboard();
+  if(state.screen==='results') renderResults();
+  const round=Number(room.round)||1;
+  if(room.status==='started'&&state.activeRound!==round){ state.activeRound=round; startLocalRace(room); }
+  if(room.status==='lobby'&&state.activeRound!==null&&state.activeRound!==round){ state.activeRound=null; resetLocalRace(); renderLobby(); setScreen('lobby'); }
 }
+async function hostStartRace(){
+  try{ const room=state.room; if(!state.isHost) return; if(connectedPlayers(room).length<2)throw new Error('At least two players are required.'); await state.roomRef.update({status:'started',startedAt:firebase.database.ServerValue.TIMESTAMP}); }catch(e){ const el=$('#lobby-error');if(el)el.textContent=firebaseMessage(e); }
+}
+function resetLocalRace(){ clearInterval(state.race.timer); state.race={questions:[],index:0,score:0,answered:[],hintUsed:false,submitted:false,timer:null,startedAt:0,selectedAnswer:'',typedAnswer:''}; }
+function startLocalRace(room){
+  resetLocalRace(); state.race.questions=Array.isArray(room.questions)?room.questions:[]; state.race.startedAt=Number(room.startedAt)||Date.now(); updateOwn({score:0,status:'On Q1',finished:false,question:1}).catch(()=>{}); setScreen('race'); renderRace();
+  if(room.config?.time){ state.race.timer=setInterval(()=>{ updateRaceTimer(); if(raceTimeLeft()<=0)finishLocalRace(); },500); }
+}
+function raceTimeLeft(){ const seconds=Number(state.room?.config?.time)||0; if(!seconds)return Infinity; return Math.max(0,seconds-Math.floor((Date.now()-state.race.startedAt)/1000)); }
+function updateRaceTimer(){ const el=$('#race-timer'); if(el)el.textContent=Number.isFinite(raceTimeLeft())?prettyTime(raceTimeLeft()):'∞'; }
+async function hostRematch(){
+  if(!state.isHost||!state.roomRef)return;
+  try{
+    const room=state.room||{}; const recent=Array.isArray(room.recentQuestionIds)?room.recentQuestionIds:[]; const questions=chooseRaceQuestions(state.config.count,recent);
+    const players={}; Object.entries(room.players||{}).forEach(([k,p])=>{players[k]={...p,score:0,status:p.connected?'Ready':'Disconnected',finished:false,question:0};});
+    await state.roomRef.update({status:'lobby',round:(Number(room.round)||1)+1,questions,recentQuestionIds:questions.map(q=>q.id),players});
+  }catch(e){toast(firebaseMessage(e));}
+}
+async function leaveRoom(){ try{await updateOwn({connected:false,status:'Left room'});}catch{} detachRoom(); clearInterval(state.race.timer); state.room=null;state.roomCode=null;state.playerKey=null;state.isHost=false;state.activeRound=null;resetLocalRace();renderHome();setScreen('home'); }
+function leaveToHome(){ if(state.roomRef){leaveRoom();return;} stopPracticeTimer();state.practice.active=false;renderHome();setScreen('home'); }
 
-function generateQuestion(subject, topic){
-  switch(subject){
-    case 'mathAA': return generateMathAA(topic);
-    case 'mathAI': return generateMathAI(topic);
-    case 'physics': return generatePhysics(topic);
-    case 'chemistry': return generateChemistry(topic);
-    case 'biology': return generateBiology(topic);
-    case 'economics': return generateEconomics(topic);
-    case 'ess': return generateESS(topic);
-    default: throw new Error(`Unknown subject: ${subject}`);
+/* ------------------------- ANSWERS ------------------------- */
+function questionHint(q){ if(typeof q.hint==='string')return q.hint; if(q.hint&&typeof q.hint==='object')return q.hint.formula||q.hint.content||q.hint.text||''; return q.formula||''; }
+function displayAnswer(q){ if(q.answerDisplay!==undefined)return String(q.answerDisplay); if(Array.isArray(q.options)&&typeof q.answer==='string'&&/^[A-D]$/i.test(q.answer)){ const i=q.answer.toUpperCase().charCodeAt(0)-65; return `${q.answer.toUpperCase()} — ${q.options[i]??''}`; } return String(q.answer); }
+function answerIsCorrect(q,raw){
+  if(raw===undefined||raw===null||String(raw).trim()==='')return false;
+  if(typeof q.answer==='number'||q.type==='numeric'){
+    let val; try{val=calcEvaluate(String(raw),state.calc.angle);}catch{return false;}
+    const ans=Number(q.answer); if(!Number.isFinite(val)||!Number.isFinite(ans))return false; const tol=Math.max(Number(q.tolerance)||0,Math.abs(ans)*1e-6); return Math.abs(val-ans)<=tol;
   }
-}
-
-function makeQuestions(){
-  const subject=SUBJECTS[config.subject];
-  if(!subject) throw new Error('Choose a valid subject.');
-  const seedTopics=config.topics.length ? config.topics : subject.topics;
-  questions=Array.from({length:config.count},(_,i)=>generateQuestion(config.subject,seedTopics[i%seedTopics.length]));
-}
-
-/* ------------------------- answer marking ------------------------- */
-function parseNumeric(raw){
-  const cleaned=String(raw).trim().replace(',','.').replace(/%$/,'').replace(/×10\^?/i,'e').replace(/\s/g,'');
-  const fraction=cleaned.match(/^(-?\d+(?:\.\d+)?)\/(-?\d+(?:\.\d+)?)$/);
-  if(fraction){
-    const den=Number(fraction[2]);
-    if(den!==0) return Number(fraction[1])/den;
+  const value=normalizeText(raw); const accepted=[q.answer,...(q.aliases||[])].map(normalizeText);
+  if(Array.isArray(q.options)&&/^[a-z]$/.test(value)) return accepted.includes(value.toUpperCase().toLowerCase());
+  if(Array.isArray(q.options)){
+    const answerLetter=String(q.answer).trim().toUpperCase(); const idx=answerLetter.charCodeAt(0)-65; if(idx>=0&&idx<q.options.length) accepted.push(normalizeText(q.options[idx]));
   }
-  const v=Number(cleaned);
-  return Number.isFinite(v)?v:null;
-}
-function answerIsCorrect(cur,raw){
-  if(typeof cur.answer==='number'){
-    const val=parseNumeric(raw);
-    if(val===null) return false;
-    const tol=Math.max(cur.tolerance||0,Math.abs(cur.answer)*0.000001);
-    return Math.abs(val-cur.answer)<=tol;
-  }
-  const value=normalizeText(raw);
-  const accepted=[cur.answer,...(cur.aliases||[])].map(normalizeText);
   return accepted.includes(value);
 }
 
-/* --------------------------- Firebase --------------------------- */
-function firebaseReady(){
-  const c=window.IBRACE_FIREBASE_CONFIG;
-  return !!(window.firebase && c && c.apiKey && c.databaseURL && !String(c.apiKey).includes('PASTE_') && !String(c.databaseURL).includes('PASTE_'));
+/* ------------------------- CALCULATOR ------------------------- */
+function calculatorMarkup(){return `<div class="calc-overlay" id="calc-overlay"><div class="calc" role="dialog" aria-modal="true" aria-label="Scientific calculator"><div class="calc-head"><div><b>Calculator</b><div class="calc-mode">Type expressions directly: 12*4, 3(2+5), sqrt(81)</div></div><div><button class="btn secondary" id="calc-angle">DEG</button> <button class="btn ghost" id="calc-close">✕</button></div></div><input id="calc-input" class="calc-input" autocomplete="off" spellcheck="false" placeholder="Type an expression…"><div class="calc-result" id="calc-result">0</div><div class="calc-grid" id="calc-keys">
+<button class="calc-key op" data-k="sin(">sin</button><button class="calc-key op" data-k="cos(">cos</button><button class="calc-key op" data-k="tan(">tan</button><button class="calc-key op" data-k="sqrt(">√</button><button class="calc-key ac" data-action="clear">AC</button>
+<button class="calc-key op" data-k="ln(">ln</button><button class="calc-key op" data-k="log(">log</button><button class="calc-key op" data-k="^">xʸ</button><button class="calc-key op" data-k="(">(</button><button class="calc-key op" data-k=")">)</button>
+<button class="calc-key" data-k="7">7</button><button class="calc-key" data-k="8">8</button><button class="calc-key" data-k="9">9</button><button class="calc-key op" data-k="/">÷</button><button class="calc-key op" data-action="back">⌫</button>
+<button class="calc-key" data-k="4">4</button><button class="calc-key" data-k="5">5</button><button class="calc-key" data-k="6">6</button><button class="calc-key op" data-k="*">×</button><button class="calc-key op" data-k="pi">π</button>
+<button class="calc-key" data-k="1">1</button><button class="calc-key" data-k="2">2</button><button class="calc-key" data-k="3">3</button><button class="calc-key op" data-k="-">−</button><button class="calc-key op" data-k="e">e</button>
+<button class="calc-key" data-k="0">0</button><button class="calc-key" data-k=".">.</button><button class="calc-key op" data-k="+">+</button><button class="calc-key op" data-k="%">%</button><button class="calc-key eq" data-action="equals">=</button>
+</div></div></div>`;}
+function openCalculator(){ $('#calc-overlay').classList.add('open'); setTimeout(()=>$('#calc-input')?.focus(),0); }
+function closeCalculator(){ $('#calc-overlay').classList.remove('open'); }
+function bindCalculator(){
+  $('#calc-close').addEventListener('click',closeCalculator); $('#calc-overlay').addEventListener('click',e=>{if(e.target.id==='calc-overlay')closeCalculator();});
+  $('#calc-angle').addEventListener('click',()=>{state.calc.angle=state.calc.angle==='DEG'?'RAD':'DEG';$('#calc-angle').textContent=state.calc.angle;calculateFromInput(false);});
+  const input=$('#calc-input'); input.addEventListener('input',()=>calculateFromInput(false)); input.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();calculateFromInput(true);}if(e.key==='Escape')closeCalculator();});
+  $$('#calc-keys [data-k]').forEach(b=>b.addEventListener('click',()=>{const start=input.selectionStart??input.value.length,end=input.selectionEnd??start; input.value=input.value.slice(0,start)+b.dataset.k+input.value.slice(end); const pos=start+b.dataset.k.length; input.setSelectionRange(pos,pos);input.focus();calculateFromInput(false);}));
+  $$('#calc-keys [data-action]').forEach(b=>b.addEventListener('click',()=>{if(b.dataset.action==='clear'){input.value='';state.calc.result='0';$('#calc-result').textContent='0';input.focus();}else if(b.dataset.action==='back'){const p=input.selectionStart??input.value.length;if(p>0){input.value=input.value.slice(0,p-1)+input.value.slice(input.selectionEnd??p);input.setSelectionRange(p-1,p-1);}calculateFromInput(false);input.focus();}else calculateFromInput(true);}));
 }
-function initFirebase(){
-  if(db) return db;
-  if(!firebaseReady()) throw new Error('Firebase is not configured yet. Open firebase-config.js in GitHub and paste your Firebase web config.');
-  if(!firebase.apps.length) firebase.initializeApp(window.IBRACE_FIREBASE_CONFIG);
-  db=firebase.database();
-  return db;
-}
-function firebaseErrorText(err){
-  const msg=String(err?.message || err || 'Unknown Firebase error');
-  if(msg.toLowerCase().includes('permission_denied') || msg.toLowerCase().includes('permission denied')) return 'Firebase denied access. Paste the included firebase-rules.json rules into Realtime Database → Rules and publish them.';
-  if(msg.toLowerCase().includes('network')) return 'Could not reach Firebase from this network. Check internet access and try again.';
-  return msg;
-}
-async function roomExists(code){ const snap=await initFirebase().ref(`rooms/${code}`).once('value'); return snap.exists(); }
-async function makeUniqueRoomCode(){
-  for(let i=0;i<12;i++){ const code=safeCode(); if(!(await roomExists(code))) return code; }
-  throw new Error('Could not generate a unique room code. Try again.');
-}
-function detachRoom(){ if(roomRef && roomListener) roomRef.off('value',roomListener); roomListener=null; roomRef=null; }
-function attachRoom(code){
-  detachRoom();
-  roomRef=initFirebase().ref(`rooms/${code}`);
-  roomListener=snap=>syncRoomState(snap.val());
-  roomRef.on('value',roomListener,err=>{ if($('#lobby-note')) $('#lobby-note').textContent=firebaseErrorText(err); });
-}
-function ownKey(){ return role==='host'?'host':'guest'; }
-function oppKey(){ return role==='host'?'guest':'host'; }
-async function updateOwn(patch){ if(roomRef && role) await roomRef.child(`players/${ownKey()}`).update(patch); }
-
-/* ------------------------ lobby + race UI ------------------------ */
-function setOpponentReady(ready=true){
-  const slot=$('#opponent-slot'); if(!slot) return;
-  if(ready){
-    slot.classList.add('ready');
-    const avatar=slot.querySelector('.avatar'); if(avatar) avatar.textContent='O';
-    const small=slot.querySelector('small'); if(small) small.textContent='Ready';
-    slot.querySelector('.pulse')?.remove();
-  } else {
-    slot.classList.remove('ready');
-    const avatar=slot.querySelector('.avatar'); if(avatar) avatar.textContent='?';
-    const small=slot.querySelector('small'); if(small) small.textContent='Waiting…';
-  }
-}
-function updateLobbySummary(){
-  const el=$('#race-summary'); if(!el) return;
-  const hard=config.hardMode?'<br><span class="hard-badge">🔥 HARD MODE</span>':'';
-  el.innerHTML=`<b>${esc(subjectLabel())}</b>${hard}<br>${config.topics.map(esc).join(' • ')}<br>${config.count} questions • ${config.time?Math.round(config.time/60)+' min':'No timer'}`;
-}
-function normalizeIncomingConfig(incoming){
-  const next={...config,...incoming};
-  if(!SUBJECTS[next.subject]) next.subject='mathAA';
-  if(!['SL','HL'].includes(next.level)) next.level='HL';
-  next.hardMode=!!next.hardMode;
-  const allowed=SUBJECTS[next.subject].topics;
-  next.topics=Array.isArray(next.topics)?next.topics.filter(t=>allowed.includes(t)):[];
-  if(!next.topics.length) next.topics=[...allowed];
-  next.count=Math.max(1,Math.min(100,Number(next.count)||10));
-  next.time=Math.max(0,Number(next.time)||0);
-  return next;
-}
-function syncRoomState(room){
-  if(!room){
-    if(mode==='join'){
-      show('join');
-      if($('#join-error')){ $('#join-error').textContent='This room no longer exists.'; $('#join-error').classList.remove('hidden'); }
-    }
-    return;
-  }
-
-  if(room.config) config=normalizeIncomingConfig(room.config);
-  if(Array.isArray(room.questions)) questions=room.questions;
-  updateLobbySummary();
-
-  const opp=room.players?.[oppKey()] || {};
-  oppScore=Number(opp.score||0);
-  if($('#screen-race')?.classList.contains('active') || $('#screen-results')?.classList.contains('active')) updateScores();
-  if($('#screen-results')?.classList.contains('active')) refreshResultHeader();
-
-  const opponentConnected=!!opp.connected;
-  setOpponentReady(opponentConnected);
-  if(mode==='host'){
-    if($('#btn-start')){
-      $('#btn-start').style.display='inline-block';
-      $('#btn-start').disabled=!opponentConnected || room.status!=='lobby';
-    }
-    if(room.status==='lobby' && $('#lobby-title')) $('#lobby-title').textContent=opponentConnected?'Opponent connected':'Waiting for opponent';
-  } else {
-    if($('#btn-start')) $('#btn-start').style.display='none';
-    if(room.status==='lobby'){
-      if($('#lobby-title')) $('#lobby-title').textContent='Connected';
-      if($('#lobby-note')) $('#lobby-note').textContent='Waiting for host to start the race.';
-    }
-  }
-
-  const roundNo=Number(room.round||1);
-  if(room.status==='started' && activeRound!==roundNo){ activeRound=roundNo; startRace(); }
-
-  if(room.status==='lobby' && activeRound!==null && activeRound!==roundNo){
-    activeRound=null; resetRace(); show('lobby');
-    if($('#lobby-title')) $('#lobby-title').textContent=mode==='host'?(opponentConnected?'Opponent connected':'Waiting for opponent'):'Connected';
-    if($('#lobby-note')) $('#lobby-note').textContent=mode==='host'?'Start when both players are ready.':'Waiting for host to start the race.';
-  }
-}
-
-function resetRace(){
-  qIndex=0; score=0; oppScore=0; answered=[]; streak=0; raceEnded=false; timeLeft=config.time;
-  clearInterval(timerId); timerId=null; updateScores();
-}
-function startRace(){
-  resetRace(); show('race');
-  if($('#race-subject')) $('#race-subject').textContent=subjectLabel();
-  if($('#race-mode-meta')) $('#race-mode-meta').innerHTML=`<span>${config.level}</span>${config.hardMode?'<span class="hard-badge">🔥 HARD</span>':''}<span id="streak-pill" class="streak-pill">⚡ 0 streak</span>`;
-  if($('#timer')) $('#timer').textContent=config.time?prettyTime(timeLeft):'∞';
-  renderQuestion();
-  updateOwn({score:0,status:'Solving…',finished:false,connected:true}).catch(()=>{});
-  if(config.time){
-    timerId=setInterval(()=>{
-      timeLeft--; if($('#timer')) $('#timer').textContent=prettyTime(timeLeft);
-      if(timeLeft<=0){ clearInterval(timerId); endRace(); }
-    },1000);
-  }
-}
-function renderQuestion(){
-  if(qIndex>=questions.length){ endRace(); return; }
-  const cur=questions[qIndex];
-  if($('#question-index')) $('#question-index').textContent=`${qIndex+1} / ${questions.length}`;
-  if($('#race-topic')) $('#race-topic').textContent=cur.topic;
-  if($('#q-topic')) $('#q-topic').textContent=cur.topic;
-  if($('#q-prompt')) $('#q-prompt').textContent=cur.prompt;
-  if($('#q-expression')) $('#q-expression').textContent=cur.expression||'';
-  if($('#answer-input')){
-    $('#answer-input').value='';
-    $('#answer-input').disabled=false;
-    $('#answer-input').placeholder=typeof cur.answer==='number'?'Enter answer…':'Enter answer / A–D…';
-    $('#answer-input').focus();
-  }
-  if($('#feedback')) $('#feedback').className='feedback hidden';
-  if($('#your-status')) $('#your-status').textContent='Solving…';
-  updateOwn({status:`On Q${qIndex+1}`,score,finished:false}).catch(()=>{});
-}
-function markAnswer(raw){
-  const cur=questions[qIndex];
-  const ok=answerIsCorrect(cur,raw);
-  let delta=0;
-  if(ok){
-    streak++;
-    delta=config.hardMode?2:1;
-    score+=delta;
-  } else {
-    streak=0;
-    delta=config.hardMode?-1:0;
-    score=Math.max(0,score+delta);
-  }
-  answered.push({q:qIndex+1,topic:cur.topic,ok,yours:raw,answer:cur.answer,delta});
-  updateScores();
-  updateOwn({score,status:ok?`Correct +${delta}`:(config.hardMode?'Wrong −1':'Submitted')}).catch(()=>{});
-
-  const streakPill=$('#streak-pill'); if(streakPill) streakPill.textContent=`⚡ ${streak} streak`;
-  const fb=$('#feedback');
-  if(fb){
-    fb.className='feedback '+(ok?'correct':'wrong');
-    fb.textContent=ok ? `Correct ✓${config.hardMode?'  +2':''}` : `Not quite.${config.hardMode?' −1 point.':''} Correct answer: ${cur.answer}`;
-  }
-  if($('#answer-input')) $('#answer-input').disabled=true;
-  if($('#your-status')) $('#your-status').textContent=ok?'Correct':'Submitted';
-  setTimeout(()=>{ qIndex++; renderQuestion(); },650);
-}
-function updateScores(){
-  if($('#your-score')) $('#your-score').textContent=score;
-  if($('#opp-score')) $('#opp-score').textContent=oppScore;
-  const max=Math.max(1,maxPossibleScore());
-  if($('#your-progress')) $('#your-progress').style.width=`${Math.min(100,(score/max)*100)}%`;
-  if($('#opp-progress')) $('#opp-progress').style.width=`${Math.min(100,(oppScore/max)*100)}%`;
-  if($('#screen-results')?.classList.contains('active')){
-    if($('#final-your-score')) $('#final-your-score').textContent=score;
-    if($('#final-opp-score')) $('#final-opp-score').textContent=oppScore;
-  }
-}
-function endRace(){
-  if(raceEnded) return;
-  raceEnded=true; clearInterval(timerId); timerId=null;
-  updateOwn({score,status:'Finished',finished:true}).catch(()=>{});
-  showResults();
-}
-function refreshResultHeader(){
-  let title='Draw',icon='🤝',sub='Same score — rematch?';
-  if(score>oppScore){ title='You win'; icon='🏆'; sub=`You scored ${score} point${score===1?'':'s'}.`; }
-  if(score<oppScore){ title='Opponent leads'; icon='⚡'; sub=`You scored ${score} point${score===1?'':'s'}.`; }
-  if($('#result-title')) $('#result-title').textContent=title;
-  if($('#result-icon')) $('#result-icon').textContent=icon;
-  if($('#result-sub')) $('#result-sub').textContent=sub;
-}
-function showResults(){
-  show('results'); updateScores(); refreshResultHeader();
-  if($('#review-list')){
-    $('#review-list').innerHTML=answered.map(x=>`<div class="review-item"><span class="${x.ok?'ok':'no'}">${x.ok?'✓':'✕'}</span><span>Q${x.q} • ${esc(x.topic)}<br><small>Your answer: ${esc(x.yours||'—')}${config.hardMode?` • ${x.delta>0?'+':''}${x.delta} pt`:''}</small></span><b>${esc(x.answer)}</b></div>`).join('');
-  }
-  if($('#btn-rematch')) $('#btn-rematch').style.display=mode==='host'?'inline-block':'none';
-}
-
-/* --------------------------- events --------------------------- */
-function bindEvents(){
-  if($('#btn-create')) $('#btn-create').onclick=()=>{
-    mode='host'; role='host';
-    if($('#btn-start')) $('#btn-start').style.display='inline-block';
-    buildSubjectPicker(); buildTopics(); syncToggleUI(); show('setup');
-  };
-  if($('#btn-join')) $('#btn-join').onclick=()=>{ mode='join'; role='guest'; show('join'); $('#join-code')?.focus(); };
-  $$('[data-back]').forEach(b=>b.onclick=()=>show('home'));
-
-  $('#level-toggle')?.addEventListener('click',e=>{
-    const btn=e.target.closest('[data-level]'); if(!btn) return;
-    config.level=btn.dataset.level; syncToggleUI();
-  });
-  $('#difficulty-toggle')?.addEventListener('click',e=>{
-    const btn=e.target.closest('[data-hard]'); if(!btn) return;
-    config.hardMode=btn.dataset.hard==='true'; syncToggleUI();
-  });
-
-  if($('#btn-host')) $('#btn-host').onclick=async()=>{
-    $('#setup-error')?.classList.add('hidden');
-    try{
-      initFirebase(); syncTopics();
-      config.count=Math.max(1,Math.min(100,Number($('#question-count')?.value)||10));
-      config.time=Math.max(0,Number($('#race-time')?.value)||0);
-      if(!config.topics.length) throw new Error('Select at least one topic.');
-      makeQuestions();
-      roomCode=await makeUniqueRoomCode();
-      const ref=initFirebase().ref(`rooms/${roomCode}`);
-      await ref.set({
-        status:'lobby',round:1,createdAt:firebase.database.ServerValue.TIMESTAMP,
-        config,questions,
-        players:{host:{connected:true,score:0,status:'Ready',finished:false},guest:{connected:false,score:0,status:'Waiting',finished:false}}
-      });
-      await ref.child('players/host/connected').onDisconnect().set(false);
-      if($('#room-code-value')) $('#room-code-value').textContent=roomCode;
-      updateLobbySummary(); show('lobby');
-      if($('#btn-start')) $('#btn-start').disabled=true;
-      if($('#lobby-title')) $('#lobby-title').textContent='Waiting for opponent';
-      if($('#lobby-note')) $('#lobby-note').textContent='Room is online. Share the code with your opponent.';
-      attachRoom(roomCode);
-    }catch(e){
-      if($('#setup-error')){ $('#setup-error').textContent=firebaseErrorText(e); $('#setup-error').classList.remove('hidden'); }
-    }
-  };
-
-  if($('#btn-connect')) $('#btn-connect').onclick=async()=>{
-    $('#join-error')?.classList.add('hidden');
-    const code=$('#join-code')?.value.trim().toUpperCase() || '';
-    if(!/^[A-Z0-9]{6}$/.test(code)){
-      if($('#join-error')){ $('#join-error').textContent='Enter the full 6-character room code.'; $('#join-error').classList.remove('hidden'); }
-      return;
-    }
-    try{
-      initFirebase();
-      const ref=initFirebase().ref(`rooms/${code}`);
-      const snap=await ref.once('value');
-      if(!snap.exists()) throw new Error('Room not found. Check the code and make sure the host still has the lobby open.');
-      const room=snap.val();
-      if(room.status!=='lobby') throw new Error('That race has already started. Ask the host to create a new room or rematch.');
-      if(room.players?.guest?.connected) throw new Error('This room already has two players.');
-      roomCode=code; role='guest'; mode='join';
-      await ref.child('players/guest').update({connected:true,score:0,status:'Ready',finished:false});
-      await ref.child('players/guest/connected').onDisconnect().set(false);
-      if($('#room-code-value')) $('#room-code-value').textContent=code;
-      if($('#btn-start')) $('#btn-start').style.display='none';
-      show('lobby');
-      if($('#lobby-title')) $('#lobby-title').textContent='Connected';
-      if($('#lobby-note')) $('#lobby-note').textContent='Waiting for host to start the race.';
-      attachRoom(code);
-    }catch(e){
-      show('join');
-      if($('#join-error')){ $('#join-error').textContent=firebaseErrorText(e); $('#join-error').classList.remove('hidden'); }
-    }
-  };
-
-  if($('#copy-code')) $('#copy-code').onclick=async()=>{
-    try{
-      await navigator.clipboard.writeText(roomCode);
-      const small=$('#copy-code small');
-      if(small){ small.textContent='copied!'; setTimeout(()=>small.textContent='click to copy',1200); }
-    }catch{}
-  };
-
-  if($('#btn-start')) $('#btn-start').onclick=async()=>{
-    if(mode!=='host' || !roomRef) return;
-    try{
-      const snap=await roomRef.once('value'); const room=snap.val();
-      if(!room?.players?.guest?.connected) throw new Error('Opponent is not connected yet.');
-      await roomRef.update({status:'started',startedAt:firebase.database.ServerValue.TIMESTAMP});
-    }catch(e){ if($('#lobby-note')) $('#lobby-note').textContent=firebaseErrorText(e); }
-  };
-
-  if($('#answer-form')) $('#answer-form').onsubmit=e=>{
-    e.preventDefault();
-    if($('#answer-input')?.disabled) return;
-    markAnswer($('#answer-input')?.value || '');
-  };
-
-  if($('#btn-rematch')) $('#btn-rematch').onclick=async()=>{
-    if(mode!=='host' || !roomRef) return;
-    try{
-      makeQuestions();
-      const snap=await roomRef.once('value'); const room=snap.val()||{}; const nextRound=Number(room.round||1)+1;
-      await roomRef.update({
-        status:'lobby',round:nextRound,questions,config,
-        'players/host/score':0,'players/host/status':'Ready','players/host/finished':false,'players/host/connected':true,
-        'players/guest/score':0,'players/guest/status':'Ready','players/guest/finished':false
-      });
-    }catch(e){ if($('#result-sub')) $('#result-sub').textContent=firebaseErrorText(e); }
-  };
-
-  if($('#btn-home')) $('#btn-home').onclick=async()=>{
-    try{ await updateOwn({connected:false}); }catch{}
-    detachRoom(); clearInterval(timerId); timerId=null; activeRound=null; show('home');
-  };
-}
-
-/* =========================================================
-   PRACTICE LAB — independent question bank + calculator
-   IMPORTANT: Practice questions are generated only by
-   generatePracticeQuestion(). Race questions continue to use
-   generateQuestion(), so the two banks never share generators.
-   ========================================================= */
-
-const PRACTICE_CONFIG = {
-  subject: 'mathAA',
-  level: 'HL',
-  topic: 'All topics',
-  difficulty: 'mixed',
-  count: 10
-};
-
-const practiceState = {
-  active: false,
-  questions: [],
-  index: 0,
-  correct: 0,
-  attempted: 0,
-  streak: 0,
-  bestStreak: 0,
-  startedAt: 0,
-  elapsedTimer: null
-};
-
-function practiceQuestion(topic,difficulty,prompt,answer,options={}){
-  return {
-    bank: 'practice',
-    topic,
-    difficulty,
-    prompt,
-    expression: options.expression || '',
-    answer,
-    tolerance: options.tolerance || 0,
-    aliases: options.aliases || [],
-    choices: null,
-    solution: options.solution || `Answer: ${answer}`,
-    level: options.level || PRACTICE_CONFIG.level
-  };
-}
-
-function practiceMCQ(topic,difficulty,prompt,choices,correctIndex,solution){
-  const letters=['A','B','C','D'];
-  return {
-    bank: 'practice',
-    topic,
-    difficulty,
-    prompt,
-    expression: '',
-    answer: letters[correctIndex],
-    tolerance: 0,
-    aliases: [choices[correctIndex]],
-    choices: choices.map((text,i)=>({letter:letters[i],text})),
-    solution: solution || `The correct option is ${letters[correctIndex]}.`,
-    level: PRACTICE_CONFIG.level
-  };
-}
-
-function practiceDifficultyValue(){
-  if(PRACTICE_CONFIG.difficulty==='mixed') return rand(1,5);
-  return Math.max(1,Math.min(5,Number(PRACTICE_CONFIG.difficulty)||3));
-}
-
-function practiceHL(){ return PRACTICE_CONFIG.level==='HL'; }
-
-/* This is deliberately independent from the 1v1 race generators above. */
-function generatePracticeQuestion(subject,topic,difficulty=practiceDifficultyValue()){
-  const d=Math.max(1,Math.min(5,Number(difficulty)||3));
-  switch(subject){
-    case 'mathAA': return generatePracticeMathAA(topic,d);
-    case 'mathAI': return generatePracticeMathAI(topic,d);
-    case 'physics': return generatePracticePhysics(topic,d);
-    case 'chemistry': return generatePracticeChemistry(topic,d);
-    case 'biology': return generatePracticeBiology(topic,d);
-    case 'economics': return generatePracticeEconomics(topic,d);
-    case 'ess': return generatePracticeESS(topic,d);
-    default: throw new Error(`Unknown practice subject: ${subject}`);
-  }
-}
-
-function generatePracticeMathAA(topic,d){
-  switch(topic){
-    case 'Algebra': {
-      if(d>=4){
-        const r1=rand(-7,2), r2=rand(3,9);
-        const sum=r1+r2, product=r1*r2;
-        return practiceQuestion(topic,d,`The equation x² ${signed(-sum)}x ${signed(product)} = 0 has two real roots. Find the larger root.`,r2,{
-          solution:`Factorise as (x ${signed(-r1)})(x ${signed(-r2)}) = 0. The roots are ${r1} and ${r2}, so the larger root is ${r2}.`
-        });
-      }
-      const x=rand(-8,8), a=rand(2,8), b=rand(-12,12), rhs=a*x+b;
-      return practiceQuestion(topic,d,`Solve ${a}x ${signed(b)} = ${rhs}.`,x,{solution:`Subtract ${b} and divide by ${a}: x = ${x}.`});
-    }
-    case 'Functions': {
-      const a=rand(2,6), b=rand(-8,8), y=rand(-5,8), out=a*y+b;
-      if(d>=4){
-        return practiceQuestion(topic,d,`For f(x) = ${a}x ${signed(b)}, find f⁻¹(${out}).`,y,{solution:`Set ${out}=${a}x ${signed(b)} and solve. This gives x=${y}.`});
-      }
-      return practiceQuestion(topic,d,`For f(x) = ${a}x ${signed(b)}, find f(${y}).`,out,{solution:`Substitute x=${y}: f(${y})=${a}(${y}) ${signed(b)}=${out}.`});
-    }
-    case 'Trigonometry': {
-      if(d>=4){
-        const a=rand(4,14), b=rand(4,14), C=pick([30,45,60,75,90,120]);
-        const c=Math.sqrt(a*a+b*b-2*a*b*Math.cos(C*Math.PI/180));
-        const ans=round(c,2);
-        return practiceQuestion(topic,d,`Two sides of a triangle are ${a} and ${b}, with included angle ${C}°. Find the third side to 2 d.p.`,ans,{tolerance:.011,solution:`Use the cosine rule: c²=${a}²+${b}²−2(${a})(${b})cos(${C}°). Hence c≈${ans}.`});
-      }
-      const opp=rand(3,12), hyp=opp+rand(2,10), ans=round(Math.asin(opp/hyp)*180/Math.PI,1);
-      return practiceQuestion(topic,d,`In a right triangle, opposite = ${opp} and hypotenuse = ${hyp}. Find θ to 1 d.p.`,ans,{tolerance:.11,solution:`sin θ=${opp}/${hyp}. Therefore θ=sin⁻¹(${opp}/${hyp})≈${ans}°.`});
-    }
-    case 'Calculus': {
-      const a=rand(2,7), n=rand(2,5), x=rand(1,4);
-      if(d>=4){
-        const b=rand(-5,5), ans=a*n*(x**(n-1))+2*b*x;
-        return practiceQuestion(topic,d,`Given f(x)=${a}x^${n} ${signed(b)}x², find f′(${x}).`,ans,{solution:`f′(x)=${a*n}x^${n-1} ${signed(2*b)}x. Substituting x=${x} gives ${ans}.`});
-      }
-      const ans=a*n*(x**(n-1));
-      return practiceQuestion(topic,d,`Given f(x)=${a}x^${n}, find f′(${x}).`,ans,{solution:`f′(x)=${a*n}x^${n-1}; at x=${x}, f′=${ans}.`});
-    }
-    case 'Vectors': {
-      const ax=rand(-6,6), ay=rand(-6,6), bx=rand(-6,6), by=rand(-6,6);
-      if(d>=4){
-        const dot=ax*bx+ay*by;
-        return practiceQuestion(topic,d,`Find a·b for a=⟨${ax},${ay}⟩ and b=⟨${bx},${by}⟩.`,dot,{solution:`a·b=(${ax})(${bx})+(${ay})(${by})=${dot}.`});
-      }
-      const ans=round(Math.sqrt(ax*ax+ay*ay),2);
-      return practiceQuestion(topic,d,`Find |a| for a=⟨${ax},${ay}⟩ to 2 d.p.`,ans,{tolerance:.011,solution:`|a|=√(${ax}²+${ay}²)≈${ans}.`});
-    }
-    case 'Probability & Statistics': {
-      if(d>=4 || practiceHL()){
-        const n=rand(4,8), p=pick([0.2,0.25,0.3,0.4,0.5,0.6]), k=rand(1,n-1);
-        const comb=factorial(n)/(factorial(k)*factorial(n-k));
-        const ans=round(comb*(p**k)*((1-p)**(n-k)),4);
-        return practiceQuestion(topic,d,`X ~ B(${n}, ${p}). Find P(X=${k}) to 4 d.p.`,ans,{tolerance:.00011,solution:`P(X=${k}) = C(${n},${k})(${p})^${k}(${round(1-p,2)})^${n-k} ≈ ${ans}.`});
-      }
-      const red=rand(2,9), blue=rand(2,9), ans=round(red/(red+blue),3);
-      return practiceQuestion(topic,d,`A bag contains ${red} red and ${blue} blue counters. Find P(red) to 3 d.p.`,ans,{tolerance:.0011,solution:`P(red)=${red}/${red+blue}≈${ans}.`});
-    }
-    default: throw new Error(`Unknown Math AA practice topic: ${topic}`);
-  }
-}
-
-function generatePracticeMathAI(topic,d){
-  switch(topic){
-    case 'Number & Algebra': {
-      const principal=rand(2,15)*1000, rate=pick([2,3,4,5,6,7])/100, years=rand(2,8);
-      const ans=round(principal*((1+rate)**years),2);
-      return practiceQuestion(topic,d,`€${principal} is invested at ${rate*100}% compound interest for ${years} years. Find the final value to 2 d.p.`,ans,{tolerance:.011,solution:`A=P(1+r)^n=${principal}(1+${rate})^${years}≈€${ans}.`});
-    }
-    case 'Functions': {
-      const m=rand(-5,8), c=rand(-10,10), x=rand(-6,8), ans=m*x+c;
-      return practiceQuestion(topic,d,`A model is y=${m}x ${signed(c)}. Find y when x=${x}.`,ans,{solution:`Substitute x=${x}: y=${m}(${x}) ${signed(c)}=${ans}.`});
-    }
-    case 'Geometry & Trigonometry': {
-      const r=rand(3,14), angle=pick([30,45,60,90,120,150]);
-      if(d>=4){
-        const ans=round((angle/360)*2*Math.PI*r,2);
-        return practiceQuestion(topic,d,`Find the arc length of a sector with radius ${r} and angle ${angle}°, to 2 d.p.`,ans,{tolerance:.011,solution:`Arc length=(${angle}/360)·2π·${r}≈${ans}.`});
-      }
-      const ans=round((angle/360)*Math.PI*r*r,2);
-      return practiceQuestion(topic,d,`Find the area of a sector with radius ${r} and angle ${angle}°, to 2 d.p.`,ans,{tolerance:.011,solution:`Area=(${angle}/360)π(${r})²≈${ans}.`});
-    }
-    case 'Statistics & Probability': {
-      const vals=Array.from({length:d>=4?7:5},()=>rand(2,24)).sort((a,b)=>a-b);
-      if(d>=4){
-        const mean=vals.reduce((s,v)=>s+v,0)/vals.length;
-        const variance=vals.reduce((s,v)=>s+(v-mean)**2,0)/vals.length;
-        const ans=round(Math.sqrt(variance),2);
-        return practiceQuestion(topic,d,`Find the population standard deviation of ${vals.join(', ')} to 2 d.p.`,ans,{tolerance:.011,solution:`Using σ=√(Σ(x−μ)²/n), the population standard deviation is ${ans}.`});
-      }
-      const ans=vals[Math.floor(vals.length/2)];
-      return practiceQuestion(topic,d,`Find the median of ${vals.join(', ')}.`,ans,{solution:`The ordered middle value is ${ans}.`});
-    }
-    case 'Calculus': {
-      const a=rand(1,6), b=rand(-8,8), x=rand(1,6), ans=2*a*x+b;
-      return practiceQuestion(topic,d,`For C(x)=${a}x² ${signed(b)}x + ${rand(1,10)}, find C′(${x}).`,ans,{solution:`C′(x)=${2*a}x ${signed(b)}. At x=${x}, C′=${ans}.`});
-    }
-    case 'Financial Mathematics': {
-      const future=rand(5,25)*1000, r=pick([2,3,4,5,6])/100, n=rand(2,8);
-      const ans=round(future/((1+r)**n),2);
-      return practiceQuestion(topic,d,`Find the present value of €${future} due in ${n} years at ${r*100}% annual interest, to 2 d.p.`,ans,{tolerance:.011,solution:`PV=FV/(1+r)^n=${future}/(1+${r})^${n}≈€${ans}.`});
-    }
-    default: throw new Error(`Unknown Math AI practice topic: ${topic}`);
-  }
-}
-
-function generatePracticePhysics(topic,d){
-  switch(topic){
-    case 'Mechanics': {
-      if(d>=4){
-        const u=rand(1,12), a=rand(2,6), t=rand(2,7), ans=u*t+0.5*a*t*t;
-        return practiceQuestion(topic,d,`An object starts at ${u} m s⁻¹ and accelerates uniformly at ${a} m s⁻² for ${t} s. Find its displacement in m.`,ans,{solution:`s=ut+½at²=${u}(${t})+½(${a})(${t}²)=${ans} m.`});
-      }
-      const m=rand(2,20), v=rand(2,12), ans=.5*m*v*v;
-      return practiceQuestion(topic,d,`A ${m} kg object moves at ${v} m s⁻¹. Find its kinetic energy in J.`,ans,{solution:`Eₖ=½mv²=½(${m})(${v}²)=${ans} J.`});
-    }
-    case 'Waves': {
-      const f=rand(2,20)*10, lambda=pick([0.2,0.25,0.4,0.5,0.75,1.2]);
-      const ans=round(f*lambda,2);
-      return practiceQuestion(topic,d,`A wave has frequency ${f} Hz and wavelength ${lambda} m. Find its speed in m s⁻¹.`,ans,{tolerance:.011,solution:`v=fλ=${f}×${lambda}=${ans} m s⁻¹.`});
-    }
-    case 'Fields': {
-      if(d>=4 || practiceHL()){
-        const m=rand(2,12), r=rand(2,8), g=round(6.67e-11*5.97e24/((r*1e6)**2),3);
-        const ans=round(m*g,3);
-        return practiceQuestion(topic,d,`At a point ${r}×10⁶ m from Earth's centre, take Earth mass as 5.97×10²⁴ kg. Find the gravitational force on a ${m} kg mass. Use G=6.67×10⁻¹¹.`,ans,{tolerance:.002,solution:`g=GM/r²≈${g} N kg⁻¹, so F=mg≈${ans} N.`});
-      }
-      const qv=rand(2,12), E=rand(2,20), ans=qv*E;
-      return practiceQuestion(topic,d,`A ${qv} C charge is in an electric field of ${E} N C⁻¹. Find the force in N.`,ans,{solution:`F=qE=${qv}×${E}=${ans} N.`});
-    }
-    case 'Electricity': {
-      if(d>=4){
-        const r1=rand(3,15), r2=rand(3,15), V=rand(6,24);
-        const req=(r1*r2)/(r1+r2), ans=round(V/req,3);
-        return practiceQuestion(topic,d,`${r1} Ω and ${r2} Ω resistors are in parallel across ${V} V. Find total current to 3 d.p.`,ans,{tolerance:.0011,solution:`R_eq=(${r1}×${r2})/(${r1}+${r2})≈${round(req,3)} Ω; I=V/R≈${ans} A.`});
-      }
-      const V=rand(4,24), I=pick([0.5,1,1.5,2,2.5,3]), ans=round(V/I,2);
-      return practiceQuestion(topic,d,`A component has ${V} V across it and current ${I} A. Find resistance in Ω.`,ans,{tolerance:.011,solution:`R=V/I=${V}/${I}=${ans} Ω.`});
-    }
-    case 'Thermal': {
-      const m=rand(1,4), c=pick([420,900,2100,4200]), dt=rand(5,40), ans=m*c*dt;
-      return practiceQuestion(topic,d,`${m} kg of material with c=${c} J kg⁻¹ K⁻¹ warms by ${dt} K. Find energy transferred in J.`,ans,{solution:`Q=mcΔT=${m}×${c}×${dt}=${ans} J.`});
-    }
-    case 'Nuclear': {
-      const initial=rand(2,15)*100, halves=rand(1,d>=4?6:4), ans=round(initial*(0.5**halves),3);
-      return practiceQuestion(topic,d,`A source starts at ${initial} Bq. What is its activity after ${halves} half-lives?`,ans,{tolerance:.002,solution:`A=A₀(½)^n=${initial}(½)^${halves}=${ans} Bq.`});
-    }
-    default: throw new Error(`Unknown Physics practice topic: ${topic}`);
-  }
-}
-
-function generatePracticeChemistry(topic,d){
-  switch(topic){
-    case 'Stoichiometry': {
-      if(d>=4){
-        const c=pick([0.1,0.2,0.25,0.5,0.75]), v=pick([20,25,40,50,100])/1000;
-        const ans=round(c*v,4);
-        return practiceQuestion(topic,d,`${Math.round(v*1000)} cm³ of a ${c} mol dm⁻³ solution is used. Find the amount of solute in mol.`,ans,{tolerance:.00011,solution:`n=cV=${c}×${v}=${ans} mol (volume converted to dm³).`});
-      }
-      const n=pick([0.1,0.2,0.25,0.5,0.75]), mr=rand(20,160), ans=round(n*mr,2);
-      return practiceQuestion(topic,d,`Find the mass of ${n} mol of a substance with Mᵣ=${mr}.`,ans,{tolerance:.011,solution:`m=nM=${n}×${mr}=${ans} g.`});
-    }
-    case 'Atomic Structure': {
-      const z=rand(3,20), neutrons=rand(3,24), charge=pick([-1,0,1,2]);
-      const electrons=z-charge;
-      return practiceQuestion(topic,d,`An ion has ${z} protons, ${neutrons} neutrons and charge ${charge>=0?'+':''}${charge}. How many electrons does it have?`,electrons,{solution:`Charge = protons − electrons, so electrons=${z}−(${charge})=${electrons}.`});
-    }
-    case 'Bonding':
-      return practiceMCQ(topic,d,'Which substance can form hydrogen bonds between its molecules?',['CH₄','H₂O','CO₂','Cl₂'],1,'Hydrogen bonding occurs when H is covalently bonded to a highly electronegative atom such as O, N or F.');
-    case 'Energetics': {
-      const broken=rand(300,900), formed=rand(300,1000), ans=broken-formed;
-      return practiceQuestion(topic,d,`Bond breaking requires ${broken} kJ mol⁻¹ and bond formation releases ${formed} kJ mol⁻¹. Estimate ΔH.`,ans,{solution:`ΔH=ΣE(bonds broken)−ΣE(bonds formed)=${broken}−${formed}=${ans} kJ mol⁻¹.`});
-    }
-    case 'Kinetics': {
-      if(d>=4){
-        const factor=pick([2,3]); const rateFactor=factor**2;
-        return practiceQuestion(topic,d,`Increasing [A] by a factor of ${factor} increases rate by a factor of ${rateFactor}. Find the order with respect to A.`,2,{solution:`rate ∝ [A]^n, so ${factor}^n=${rateFactor}; n=2.`});
-      }
-      return practiceMCQ(topic,d,'Which change increases reaction rate but does not change the equilibrium position?',['Adding a catalyst','Lowering temperature','Removing reactant','Increasing product concentration'],0,'A catalyst lowers activation energy for both forward and reverse reactions equally, changing rate but not equilibrium position.');
-    }
-    case 'Equilibrium': {
-      const a=pick([0.2,0.25,0.4,0.5,0.8]), ratio=rand(2,6), b=round(a*ratio,2), ans=round(b/a,3);
-      return practiceQuestion(topic,d,`For A ⇌ B, [A]=${a} mol dm⁻³ and [B]=${b} mol dm⁻³ at equilibrium. Find Kc=[B]/[A].`,ans,{tolerance:.002,solution:`Kc=${b}/${a}=${ans}.`});
-    }
-    case 'Acids & Bases': {
-      if(d>=4 || practiceHL()){
-        const pH=rand(1,5), ans=10**(-pH);
-        return practiceQuestion(topic,d,`A solution has pH ${pH}. Find [H⁺] in mol dm⁻³.`,ans,{tolerance:Math.max(1e-12,ans*.002),solution:`[H⁺]=10^(−pH)=10^−${pH}=${ans}.`});
-      }
-      const pH=rand(1,6);
-      return practiceQuestion(topic,d,`A solution has [H⁺]=1×10⁻${pH} mol dm⁻³. Find its pH.`,pH,{solution:`pH=−log₁₀[H⁺]=${pH}.`});
-    }
-    case 'Redox':
-      return practiceMCQ(topic,d,'Oxidation is best defined as…',['gain of electrons','loss of electrons','gain of protons','loss of neutrons'],1,'Oxidation is loss of electrons; reduction is gain of electrons.');
-    case 'Organic':
-      return practiceMCQ(topic,d,'Which functional group is present in a carboxylic acid?',['–OH only','–CHO','–COOH','–NH₂'],2,'Carboxylic acids contain the –COOH functional group.');
-    default: throw new Error(`Unknown Chemistry practice topic: ${topic}`);
-  }
-}
-
-function generatePracticeBiology(topic,d){
-  switch(topic){
-    case 'Cell Biology':
-      return practiceMCQ(topic,d,'Which organelle is the main site of aerobic respiration in eukaryotic cells?',['Ribosome','Mitochondrion','Golgi apparatus','Lysosome'],1,'Aerobic respiration is primarily carried out in mitochondria.');
-    case 'Molecular Biology':
-      return practiceMCQ(topic,d,'During DNA replication, which enzyme separates the two DNA strands?',['DNA ligase','Helicase','RNA polymerase','Peptidase'],1,'Helicase unwinds the double helix and separates the strands by breaking hydrogen bonds.');
-    case 'Genetics': {
-      const pct=d>=4?25:50;
-      const cross=d>=4?'Aa × Aa':'Aa × aa';
-      return practiceQuestion(topic,d,`For the cross ${cross}, what percentage of offspring are expected to have genotype aa?`,pct,{aliases:[`${pct}%`],solution:d>=4?'Aa × Aa gives AA:Aa:aa in a 1:2:1 ratio, so aa=25%.':'Aa × aa gives Aa and aa in a 1:1 ratio, so aa=50%.'});
-    }
-    case 'Metabolism':
-      return practiceMCQ(topic,d,'Which molecule directly transfers usable chemical energy in cells?',['ATP','DNA','Cellulose','Oxygen'],0,'ATP is the immediate energy-transfer molecule used by cells.');
-    case 'Ecology': {
-      const first=rand(20,80), second=rand(20,80), rec=rand(5,Math.min(first,second)), ans=round(first*second/rec,1);
-      return practiceQuestion(topic,d,`Mark–recapture: ${first} are marked first; later ${second} are caught and ${rec} are marked. Estimate population size to 1 d.p.`,ans,{tolerance:.11,solution:`N≈(first catch × second catch)/recaptured = ${first}×${second}/${rec}≈${ans}.`});
-    }
-    case 'Evolution':
-      return practiceMCQ(topic,d,'Which condition is required for natural selection to cause evolutionary change?',['No variation','Heritable variation affecting reproductive success','Identical survival of all phenotypes','No reproduction'],1,'Natural selection requires heritable variation associated with differences in survival or reproduction.');
-    case 'Human Physiology':
-      return d>=4
-        ? practiceMCQ(topic,d,'Where does ultrafiltration occur in a nephron?',['Collecting duct','Loop of Henle','Glomerulus into Bowman’s capsule','Distal convoluted tubule'],2,'High hydrostatic pressure in the glomerulus drives ultrafiltration into Bowman’s capsule.')
-        : practiceMCQ(topic,d,'Which chamber pumps oxygenated blood into the aorta?',['Right atrium','Right ventricle','Left atrium','Left ventricle'],3,'The left ventricle pumps oxygenated blood into the systemic circulation through the aorta.');
-    default: throw new Error(`Unknown Biology practice topic: ${topic}`);
-  }
-}
-
-function generatePracticeEconomics(topic,d){
-  switch(topic){
-    case 'Microeconomics': {
-      if(d>=4 || practiceHL()){
-        const q1=rand(90,150), q2=rand(45,85), p1=rand(5,12), p2=p1+rand(2,6);
-        const ped=((q2-q1)/((q1+q2)/2))/((p2-p1)/((p1+p2)/2));
-        const ans=round(ped,2);
-        return practiceQuestion(topic,d,`Price rises from €${p1} to €${p2}; quantity demanded falls from ${q1} to ${q2}. Using the midpoint method, calculate PED to 2 d.p.`,ans,{tolerance:.011,solution:`PED=(%ΔQ using midpoint)/(%ΔP using midpoint)≈${ans}.`});
-      }
-      const q=rand(20,100), p=rand(2,15), ans=q*p;
-      return practiceQuestion(topic,d,`A firm sells ${q} units at €${p} each. Calculate total revenue.`,ans,{solution:`TR=P×Q=${p}×${q}=€${ans}.`});
-    }
-    case 'Macroeconomics': {
-      const nominal=rand(200,900), deflator=pick([90,95,100,105,110,120]), ans=round(nominal/(deflator/100),2);
-      return practiceQuestion(topic,d,`Nominal GDP is ${nominal} billion and the GDP deflator is ${deflator}. Calculate real GDP to 2 d.p.`,ans,{tolerance:.011,solution:`Real GDP=nominal GDP/(deflator/100)=${nominal}/${deflator/100}≈${ans} billion.`});
-    }
-    case 'Global Economy': {
-      const old=pick([1.05,1.1,1.2,1.25]), factor=pick([0.85,0.9,1.1,1.15]), now=round(old*factor,2);
-      const appreciated=now>old;
-      return practiceMCQ(topic,d,`The rate changes from €1 = $${old} to €1 = $${now}. The euro has…`,appreciated?['appreciated','depreciated','caused a tariff','become inflationary']:['depreciated','appreciated','become a quota','caused deflation'],0,appreciated?'One euro now buys more US dollars, so the euro appreciated against the dollar.':'One euro now buys fewer US dollars, so the euro depreciated against the dollar.');
-    }
-    case 'Development':
-      return practiceMCQ(topic,d,'Which is one of the dimensions used in the Human Development Index?',['Military expenditure','Health/life expectancy','Current-account balance','Interest rate'],1,'HDI combines health, education and income dimensions.');
-    default: throw new Error(`Unknown Economics practice topic: ${topic}`);
-  }
-}
-
-function generatePracticeESS(topic,d){
-  switch(topic){
-    case 'Ecosystems': {
-      const input=rand(600,2000), output=rand(40,240), ans=round(100*output/input,1);
-      return practiceQuestion(topic,d,`A trophic level receives ${input} kJ m⁻² yr⁻¹ and passes ${output} kJ m⁻² yr⁻¹ onward. Calculate ecological efficiency to 1 d.p.`,ans,{tolerance:.11,aliases:[`${ans}%`],solution:`Efficiency=(output/input)×100=(${output}/${input})×100≈${ans}%.`});
-    }
-    case 'Biodiversity':
-      return practiceMCQ(topic,d,'Which change would normally increase biodiversity in a habitat?',['Greater habitat variety','Removal of all decomposers','Elimination of genetic variation','Complete monoculture'],0,'Greater habitat variety creates more niches and can support more species.');
-    case 'Pollution':
-      return practiceMCQ(topic,d,'Which input is most directly associated with freshwater eutrophication?',['Nitrates and phosphates','CFCs','Carbon monoxide only','Sand'],0,'Nitrate and phosphate enrichment can stimulate algal blooms and eutrophication.');
-    case 'Climate Change': {
-      const base=rand(100,600), pct=rand(5,35), ans=round(base*(1-pct/100),2);
-      return practiceQuestion(topic,d,`Emissions of ${base} Mt are reduced by ${pct}%. Calculate the new annual emissions.`,ans,{tolerance:.011,solution:`New value=${base}(1−${pct}/100)=${ans} Mt.`});
-    }
-    case 'Water & Food': {
-      const recharge=rand(150,800), use=rand(200,900), ans=recharge-use;
-      return practiceQuestion(topic,d,`An aquifer receives ${recharge} million m³ yr⁻¹ and withdrawals are ${use} million m³ yr⁻¹. Calculate net storage change (recharge − withdrawal).`,ans,{solution:`Net change=${recharge}−${use}=${ans} million m³ yr⁻¹.`});
-    }
-    case 'Energy & Resources': {
-      const input=rand(100,1200), eff=pick([20,25,30,35,40,45,50])/100, ans=round(input*eff,2);
-      return practiceQuestion(topic,d,`An energy system receives ${input} MJ at ${eff*100}% efficiency. Calculate useful output energy.`,ans,{tolerance:.011,solution:`Useful output=${input}×${eff}=${ans} MJ.`});
-    }
-    case 'Sustainability':
-      return practiceMCQ(topic,d,'Which action best fits a circular-economy model?',['Designing products for repair and reuse','Maximising single-use materials','Landfilling reusable products','Increasing virgin-resource extraction'],0,'Circular-economy strategies keep products and materials in use through durability, repair, reuse and recycling.');
-    default: throw new Error(`Unknown ESS practice topic: ${topic}`);
-  }
-}
-
-function injectPracticeStyles(){
-  if($('#ibrace-practice-styles')) return;
-  const style=document.createElement('style');
-  style.id='ibrace-practice-styles';
-  style.textContent=`
-    #screen-practice{max-width:1180px!important;width:min(1180px,96vw)!important;margin:0 auto!important;padding:18px!important}
-    .practice-topbar{display:flex;align-items:center;gap:12px;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap}
-    .practice-topbar-left{display:flex;align-items:center;gap:10px;min-width:0}.practice-title{font-weight:900;font-size:1.25rem}.practice-subtitle{opacity:.65;font-size:.82rem}
-    .practice-layout{display:grid;grid-template-columns:minmax(230px,280px) minmax(0,1fr);gap:18px;align-items:start}
-    .practice-sidebar,.practice-main-card,.practice-summary-card{border:1px solid rgba(127,127,127,.22);border-radius:18px;background:rgba(127,127,127,.045)}
-    .practice-sidebar{padding:16px;position:sticky;top:12px}.practice-main-card{padding:22px;min-height:500px}
-    .practice-section-label{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;font-weight:900;opacity:.6;margin:14px 0 7px}.practice-section-label:first-child{margin-top:0}
-    .practice-select{width:100%;min-height:42px;border-radius:10px;border:1px solid rgba(127,127,127,.28);background:transparent;color:inherit;padding:8px 10px;font:inherit}
-    .practice-levels{display:grid;grid-template-columns:1fr 1fr;gap:7px}.practice-levels button,.practice-topic-grid button{border:1px solid rgba(127,127,127,.24);background:transparent;color:inherit;border-radius:10px;min-height:40px;padding:7px 8px;font:inherit;cursor:pointer}
-    .practice-levels button.selected,.practice-topic-grid button.selected{background:var(--accent,#7357ff);color:#fff;border-color:transparent}
-    .practice-topic-grid{display:grid;grid-template-columns:1fr;gap:6px;max-height:220px;overflow:auto;padding-right:2px}.practice-topic-grid button{text-align:left;font-size:.85rem}
-    .practice-start{width:100%;margin-top:15px;min-height:46px;border:0;border-radius:12px;background:var(--accent,#7357ff);color:#fff;font-weight:900;cursor:pointer}
-    .practice-session-meta{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-bottom:15px;border-bottom:1px solid rgba(127,127,127,.18)}
-    .practice-tags{display:flex;gap:7px;flex-wrap:wrap}.practice-tag{font-size:.75rem;font-weight:800;border:1px solid rgba(127,127,127,.22);padding:5px 9px;border-radius:999px;opacity:.85}
-    .practice-stats{display:flex;gap:14px;flex-wrap:wrap;font-size:.8rem}.practice-stats b{font-size:1rem}
-    .practice-question-number{margin-top:20px;font-size:.78rem;font-weight:900;letter-spacing:.08em;text-transform:uppercase;opacity:.55}
-    .practice-prompt{font-size:1.18rem;line-height:1.55;font-weight:750;margin:12px 0}.practice-expression{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:1.05rem;line-height:1.6;padding:13px 15px;border-radius:12px;background:rgba(127,127,127,.08);white-space:pre-wrap;margin-bottom:16px}
-    .practice-choices{display:grid;gap:9px;margin:15px 0}.practice-choice{display:grid;grid-template-columns:34px 1fr;gap:10px;align-items:center;text-align:left;min-height:48px;padding:8px 11px;border:1px solid rgba(127,127,127,.25);background:transparent;color:inherit;border-radius:12px;font:inherit;cursor:pointer}.practice-choice .letter{font-weight:900;opacity:.7}.practice-choice.selected{border-color:var(--accent,#7357ff);box-shadow:inset 0 0 0 1px var(--accent,#7357ff)}.practice-choice.correct{border-color:#2e9b61;background:rgba(46,155,97,.1)}.practice-choice.wrong{border-color:#c85151;background:rgba(200,81,81,.1)}
-    .practice-answer-row{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}.practice-answer-input{flex:1;min-width:180px;min-height:46px;border-radius:11px;border:1px solid rgba(127,127,127,.28);background:transparent;color:inherit;padding:9px 12px;font:inherit;font-size:1rem}.practice-primary,.practice-secondary{min-height:44px;border-radius:11px;padding:8px 15px;font-weight:850;cursor:pointer}.practice-primary{border:0;background:var(--accent,#7357ff);color:#fff}.practice-secondary{border:1px solid rgba(127,127,127,.28);background:transparent;color:inherit}
-    .practice-feedback{margin-top:16px;padding:14px 15px;border-radius:13px;line-height:1.5}.practice-feedback.correct{background:rgba(46,155,97,.11);border:1px solid rgba(46,155,97,.34)}.practice-feedback.wrong{background:rgba(200,81,81,.1);border:1px solid rgba(200,81,81,.3)}.practice-feedback strong{display:block;margin-bottom:5px}
-    .practice-nav-wrap{margin-top:22px;padding-top:16px;border-top:1px solid rgba(127,127,127,.18)}.practice-nav{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.practice-nav button{width:36px;height:36px;border-radius:9px;border:1px solid rgba(127,127,127,.22);background:transparent;color:inherit;font-weight:800;cursor:pointer}.practice-nav button.current{outline:2px solid var(--accent,#7357ff);outline-offset:1px}.practice-nav button.done{background:rgba(46,155,97,.12)}.practice-nav button.wrong{background:rgba(200,81,81,.11)}.practice-nav button.flagged::after{content:'•';color:#e0a31a;position:absolute}.practice-nav button{position:relative}
-    .practice-empty{display:grid;place-items:center;min-height:420px;text-align:center;padding:30px}.practice-empty-icon{font-size:2.4rem;margin-bottom:10px}.practice-empty h2{margin:0 0 8px}.practice-empty p{max-width:520px;opacity:.7;line-height:1.5}
-    .practice-summary-card{padding:24px;text-align:center}.practice-summary-score{font-size:3rem;font-weight:950;line-height:1}.practice-summary-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:20px 0}.practice-summary-grid>div{padding:14px;border-radius:12px;background:rgba(127,127,127,.07)}.practice-summary-grid b{display:block;font-size:1.2rem}
-    .practice-home-btn{display:inline-flex!important;align-items:center;justify-content:center;gap:8px}.practice-tools{display:flex;gap:8px;flex-wrap:wrap}
-    .calc-overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:9999;padding:16px}.calc-overlay.open{display:flex}.calc-panel{width:min(360px,96vw);border-radius:18px;background:#17171b;color:#f7f7f8;border:1px solid #35353d;padding:14px;box-shadow:0 20px 70px rgba(0,0,0,.35)}.calc-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}.calc-title{font-weight:900}.calc-close,.calc-mode{border:1px solid #41414a;background:#24242b;color:#fff;border-radius:9px;min-height:36px;padding:6px 10px;cursor:pointer}.calc-display{min-height:78px;border-radius:12px;background:#0f0f12;border:1px solid #303038;padding:11px;margin-bottom:10px;text-align:right;overflow:hidden}.calc-expression{font-family:ui-monospace,monospace;font-size:.9rem;opacity:.6;min-height:21px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.calc-result{font-family:ui-monospace,monospace;font-size:1.55rem;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.calc-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}.calc-key{min-height:44px;border:1px solid #383842;background:#25252c;color:#fff;border-radius:10px;font-size:.95rem;font-weight:750;cursor:pointer}.calc-key.op{background:#31313b}.calc-key.equals{background:#6d55e8;border-color:#6d55e8}.calc-key.wide{grid-column:span 2}
-    @media(max-width:760px){#screen-practice{width:100%!important;padding:10px!important}.practice-layout{grid-template-columns:1fr}.practice-sidebar{position:static}.practice-main-card{padding:16px;min-height:420px}.practice-topic-grid{grid-template-columns:repeat(2,minmax(0,1fr));max-height:none}.practice-summary-grid{grid-template-columns:1fr}.practice-stats{gap:9px}.practice-answer-row>*{width:100%}}
-  `;
-  document.head.appendChild(style);
-}
-
-function ensurePracticeUI(){
-  if(!$('#screen-practice')){
-    const screen=document.createElement('section');
-    screen.id='screen-practice';
-    screen.className='screen';
-    screen.innerHTML=`
-      <div class="practice-topbar">
-        <div class="practice-topbar-left">
-          <button type="button" id="practice-back" class="practice-secondary">← Home</button>
-          <div><div class="practice-title">Practice Lab</div><div class="practice-subtitle">Independent practice bank — separate from 1v1 races</div></div>
-        </div>
-        <div class="practice-tools">
-          <button type="button" id="practice-calculator-btn" class="practice-secondary">⌨ Calculator</button>
-          <button type="button" id="practice-finish" class="practice-secondary" style="display:none">Finish session</button>
-        </div>
-      </div>
-      <div class="practice-layout">
-        <aside class="practice-sidebar">
-          <div class="practice-section-label">Subject</div>
-          <select id="practice-subject" class="practice-select"></select>
-          <div class="practice-section-label">Level</div>
-          <div class="practice-levels" id="practice-levels"><button type="button" data-level="SL">SL</button><button type="button" data-level="HL">HL</button></div>
-          <div class="practice-section-label">Difficulty</div>
-          <select id="practice-difficulty" class="practice-select"><option value="mixed">Mixed 1–5</option><option value="1">1 — Foundation</option><option value="2">2 — Standard</option><option value="3">3 — Challenging</option><option value="4">4 — Hard</option><option value="5">5 — Brutal</option></select>
-          <div class="practice-section-label">Questions</div>
-          <select id="practice-count" class="practice-select"><option value="5">5</option><option value="10" selected>10</option><option value="20">20</option><option value="30">30</option></select>
-          <div class="practice-section-label">Topic</div>
-          <div id="practice-topics" class="practice-topic-grid"></div>
-          <button type="button" id="practice-start" class="practice-start">Start practice</button>
-        </aside>
-        <main id="practice-workspace" class="practice-main-card"></main>
-      </div>`;
-    document.body.appendChild(screen);
-  }
-
-  if(!$('#btn-practice') && $('#btn-create')){
-    const b=document.createElement('button');
-    b.id='btn-practice'; b.type='button';
-    b.className=($('#btn-create').className||'')+' practice-home-btn';
-    b.innerHTML='<span>◎</span><span>Practice questions</span>';
-    $('#btn-create').insertAdjacentElement('afterend',b);
-  }
-
-  if(!$('#race-calculator-btn') && $('#timer')){
-    const b=document.createElement('button');
-    b.id='race-calculator-btn'; b.type='button'; b.className='practice-secondary'; b.textContent='⌨ Calculator';
-    $('#timer').insertAdjacentElement('afterend',b);
-  }
-
-  if(!$('#calculator-overlay')){
-    const overlay=document.createElement('div');
-    overlay.id='calculator-overlay'; overlay.className='calc-overlay';
-    overlay.innerHTML=`
-      <div class="calc-panel" role="dialog" aria-modal="true" aria-label="Scientific calculator">
-        <div class="calc-head"><div class="calc-title">Calculator</div><div><button type="button" id="calc-mode" class="calc-mode">DEG</button> <button type="button" id="calc-close" class="calc-close">✕</button></div></div>
-        <div class="calc-display"><div id="calc-expression" class="calc-expression">0</div><div id="calc-result" class="calc-result">0</div></div>
-        <div class="calc-grid" id="calc-grid">
-          <button class="calc-key op" data-token="sin(">sin</button><button class="calc-key op" data-token="cos(">cos</button><button class="calc-key op" data-token="tan(">tan</button><button class="calc-key op" data-token="sqrt(">√</button><button class="calc-key op" data-action="clear">AC</button>
-          <button class="calc-key op" data-token="ln(">ln</button><button class="calc-key op" data-token="log(">log</button><button class="calc-key op" data-token="^">xʸ</button><button class="calc-key op" data-token="(">(</button><button class="calc-key op" data-token=")">)</button>
-          <button class="calc-key" data-token="7">7</button><button class="calc-key" data-token="8">8</button><button class="calc-key" data-token="9">9</button><button class="calc-key op" data-token="/">÷</button><button class="calc-key op" data-action="back">⌫</button>
-          <button class="calc-key" data-token="4">4</button><button class="calc-key" data-token="5">5</button><button class="calc-key" data-token="6">6</button><button class="calc-key op" data-token="*">×</button><button class="calc-key op" data-token="pi">π</button>
-          <button class="calc-key" data-token="1">1</button><button class="calc-key" data-token="2">2</button><button class="calc-key" data-token="3">3</button><button class="calc-key op" data-token="-">−</button><button class="calc-key op" data-token="e">e</button>
-          <button class="calc-key wide" data-token="0">0</button><button class="calc-key" data-token=".">.</button><button class="calc-key op" data-token="+">+</button><button class="calc-key equals" data-action="equals">=</button>
-        </div>
-      </div>`;
-    document.body.appendChild(overlay);
-  }
-
-  populatePracticeSubjects();
-  renderPracticeTopics();
-  syncPracticeFilters();
-  renderPracticeEmpty();
-}
-
-function populatePracticeSubjects(){
-  const select=$('#practice-subject'); if(!select) return;
-  select.innerHTML=Object.entries(SUBJECTS).map(([key,s])=>`<option value="${key}">${esc(s.short)}</option>`).join('');
-  select.value=PRACTICE_CONFIG.subject;
-}
-
-function renderPracticeTopics(){
-  const box=$('#practice-topics'); if(!box) return;
-  const topics=SUBJECTS[PRACTICE_CONFIG.subject]?.topics || [];
-  const all=['All topics',...topics];
-  if(!all.includes(PRACTICE_CONFIG.topic)) PRACTICE_CONFIG.topic='All topics';
-  box.innerHTML='';
-  all.forEach(topic=>{
-    const b=document.createElement('button'); b.type='button'; b.textContent=topic; b.dataset.topic=topic;
-    b.classList.toggle('selected',topic===PRACTICE_CONFIG.topic);
-    b.addEventListener('click',()=>{ PRACTICE_CONFIG.topic=topic; renderPracticeTopics(); });
-    box.appendChild(b);
-  });
-}
-
-function syncPracticeFilters(){
-  if($('#practice-subject')) $('#practice-subject').value=PRACTICE_CONFIG.subject;
-  if($('#practice-difficulty')) $('#practice-difficulty').value=String(PRACTICE_CONFIG.difficulty);
-  if($('#practice-count')) $('#practice-count').value=String(PRACTICE_CONFIG.count);
-  $$('#practice-levels [data-level]').forEach(b=>b.classList.toggle('selected',b.dataset.level===PRACTICE_CONFIG.level));
-}
-
-function renderPracticeEmpty(){
-  const box=$('#practice-workspace'); if(!box || practiceState.active) return;
-  box.innerHTML=`<div class="practice-empty"><div><div class="practice-empty-icon">◎</div><h2>Build a focused practice set</h2><p>Choose a subject, level, difficulty and topic. Questions here come from a dedicated practice bank and are never pulled from the 1v1 race bank.</p><button type="button" id="practice-quick-start" class="practice-primary">Start with current filters</button></div></div>`;
-  $('#practice-quick-start')?.addEventListener('click',startPracticeSession);
-}
-
-function startPracticeSession(){
-  const subject=SUBJECTS[PRACTICE_CONFIG.subject];
-  if(!subject) return;
-  const topics=PRACTICE_CONFIG.topic==='All topics' ? subject.topics : [PRACTICE_CONFIG.topic];
-  practiceState.questions=Array.from({length:PRACTICE_CONFIG.count},(_,i)=>{
-    const topic=topics[i%topics.length];
-    const question=generatePracticeQuestion(PRACTICE_CONFIG.subject,topic,practiceDifficultyValue());
-    return {...question,response:'',submitted:false,ok:false,flagged:false};
-  });
-  /* Shuffle only when practicing all topics, while preserving a balanced spread. */
-  if(PRACTICE_CONFIG.topic==='All topics'){
-    for(let i=practiceState.questions.length-1;i>0;i--){ const j=rand(0,i); [practiceState.questions[i],practiceState.questions[j]]=[practiceState.questions[j],practiceState.questions[i]]; }
-  }
-  practiceState.active=true; practiceState.index=0; practiceState.correct=0; practiceState.attempted=0; practiceState.streak=0; practiceState.bestStreak=0; practiceState.startedAt=Date.now();
-  clearInterval(practiceState.elapsedTimer);
-  practiceState.elapsedTimer=setInterval(updatePracticeClock,1000);
-  if($('#practice-finish')) $('#practice-finish').style.display='inline-block';
-  renderPracticeQuestion();
-}
-
-function practiceElapsed(){ return practiceState.startedAt ? Math.max(0,Math.floor((Date.now()-practiceState.startedAt)/1000)) : 0; }
-function updatePracticeClock(){ const el=$('#practice-time'); if(el) el.textContent=prettyTime(practiceElapsed()); }
-function practiceAccuracy(){ return practiceState.attempted ? Math.round(100*practiceState.correct/practiceState.attempted) : 0; }
-
-function renderPracticeQuestion(){
-  const box=$('#practice-workspace'); if(!box || !practiceState.active) return;
-  const cur=practiceState.questions[practiceState.index];
-  if(!cur){ finishPracticeSession(); return; }
-  const answerUI=cur.choices
-    ? `<div class="practice-choices" id="practice-choices">${cur.choices.map(c=>`<button type="button" class="practice-choice${cur.response===c.letter?' selected':''}" data-letter="${c.letter}" ${cur.submitted?'disabled':''}><span class="letter">${c.letter}</span><span>${esc(c.text)}</span></button>`).join('')}</div><input type="hidden" id="practice-answer" value="${esc(cur.response)}">`
-    : `<input id="practice-answer" class="practice-answer-input" autocomplete="off" inputmode="decimal" placeholder="Enter your answer" value="${esc(cur.response)}" ${cur.submitted?'disabled':''}>`;
-  box.innerHTML=`
-    <div class="practice-session-meta">
-      <div class="practice-tags"><span class="practice-tag">${esc(SUBJECTS[PRACTICE_CONFIG.subject].short)} ${esc(PRACTICE_CONFIG.level)}</span><span class="practice-tag">${esc(cur.topic)}</span><span class="practice-tag">Difficulty ${cur.difficulty}/5</span></div>
-      <div class="practice-stats"><span><b>${practiceState.correct}/${practiceState.attempted}</b> correct</span><span><b>${practiceAccuracy()}%</b> accuracy</span><span><b>${practiceState.streak}</b> streak</span><span><b id="practice-time">${prettyTime(practiceElapsed())}</b></span></div>
-    </div>
-    <div class="practice-question-number">Question ${practiceState.index+1} of ${practiceState.questions.length}</div>
-    <div class="practice-prompt">${esc(cur.prompt)}</div>
-    ${cur.expression?`<div class="practice-expression">${esc(cur.expression)}</div>`:''}
-    ${answerUI}
-    <div class="practice-answer-row">
-      ${cur.submitted?`<button type="button" id="practice-next" class="practice-primary">${practiceState.index===practiceState.questions.length-1?'Finish':'Next question →'}</button>`:'<button type="button" id="practice-submit" class="practice-primary">Check answer</button>'}
-      <button type="button" id="practice-flag" class="practice-secondary">${cur.flagged?'★ Flagged':'☆ Flag'}</button>
-      ${!cur.submitted?'<button type="button" id="practice-skip" class="practice-secondary">Skip →</button>':''}
-    </div>
-    ${cur.submitted?`<div class="practice-feedback ${cur.ok?'correct':'wrong'}"><strong>${cur.ok?'Correct ✓':'Not quite ✕'}${cur.ok?'':` — answer: ${esc(cur.answer)}`}</strong><span>${esc(cur.solution)}</span></div>`:''}
-    <div class="practice-nav-wrap"><div class="practice-section-label">Question navigator</div><div class="practice-nav" id="practice-nav">${practiceState.questions.map((qv,i)=>`<button type="button" data-index="${i}" class="${i===practiceState.index?'current ':''}${qv.submitted?(qv.ok?'done':'wrong'):''} ${qv.flagged?'flagged':''}">${i+1}</button>`).join('')}</div></div>`;
-
-  $$('#practice-choices .practice-choice').forEach(btn=>btn.addEventListener('click',()=>{
-    if(cur.submitted) return;
-    cur.response=btn.dataset.letter;
-    renderPracticeQuestion();
-  }));
-  $('#practice-answer')?.addEventListener('input',e=>{ if(!cur.choices) cur.response=e.target.value; });
-  $('#practice-answer')?.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!cur.submitted){ e.preventDefault(); submitPracticeAnswer(); } });
-  $('#practice-submit')?.addEventListener('click',submitPracticeAnswer);
-  $('#practice-next')?.addEventListener('click',()=>{
-    if(practiceState.index>=practiceState.questions.length-1) finishPracticeSession();
-    else { practiceState.index++; renderPracticeQuestion(); }
-  });
-  $('#practice-skip')?.addEventListener('click',()=>{
-    practiceState.index=(practiceState.index+1)%practiceState.questions.length; renderPracticeQuestion();
-  });
-  $('#practice-flag')?.addEventListener('click',()=>{ cur.flagged=!cur.flagged; renderPracticeQuestion(); });
-  $$('#practice-nav [data-index]').forEach(btn=>btn.addEventListener('click',()=>{ practiceState.index=Number(btn.dataset.index); renderPracticeQuestion(); }));
-  if(!cur.choices && !cur.submitted) $('#practice-answer')?.focus();
-}
-
-function submitPracticeAnswer(){
-  const cur=practiceState.questions[practiceState.index]; if(!cur || cur.submitted) return;
-  const raw=cur.choices ? cur.response : ($('#practice-answer')?.value ?? cur.response);
-  if(String(raw).trim()===''){
-    const input=$('#practice-answer'); if(input){ input.focus(); input.style.borderColor='#c85151'; setTimeout(()=>{ if(input) input.style.borderColor=''; },700); }
-    return;
-  }
-  cur.response=String(raw); cur.ok=answerIsCorrect(cur,cur.response); cur.submitted=true;
-  practiceState.attempted++;
-  if(cur.ok){ practiceState.correct++; practiceState.streak++; practiceState.bestStreak=Math.max(practiceState.bestStreak,practiceState.streak); }
-  else practiceState.streak=0;
-  renderPracticeQuestion();
-}
-
-function finishPracticeSession(){
-  if(!practiceState.active) return;
-  practiceState.active=false;
-  clearInterval(practiceState.elapsedTimer); practiceState.elapsedTimer=null;
-  if($('#practice-finish')) $('#practice-finish').style.display='none';
-  const box=$('#practice-workspace'); if(!box) return;
-  const elapsed=practiceElapsed();
-  const wrong=practiceState.questions.filter(x=>x.submitted&&!x.ok).length;
-  const unanswered=practiceState.questions.filter(x=>!x.submitted).length;
-  box.innerHTML=`<div class="practice-summary-card"><div class="practice-section-label">Session complete</div><div class="practice-summary-score">${practiceAccuracy()}%</div><p>${practiceState.correct} correct from ${practiceState.attempted} attempted</p><div class="practice-summary-grid"><div><b>${practiceState.bestStreak}</b>best streak</div><div><b>${prettyTime(elapsed)}</b>time</div><div><b>${wrong}</b>incorrect</div></div>${unanswered?`<p style="opacity:.7">${unanswered} question${unanswered===1?' was':'s were'} left unanswered.</p>`:''}<div class="practice-answer-row" style="justify-content:center"><button type="button" id="practice-new" class="practice-primary">New practice set</button>${wrong?'<button type="button" id="practice-review-wrong" class="practice-secondary">Review mistakes</button>':''}</div><div id="practice-mistakes"></div></div>`;
-  $('#practice-new')?.addEventListener('click',()=>{ renderPracticeEmpty(); });
-  $('#practice-review-wrong')?.addEventListener('click',renderPracticeMistakes);
-}
-
-function renderPracticeMistakes(){
-  const target=$('#practice-mistakes'); if(!target) return;
-  const wrong=practiceState.questions.filter(x=>x.submitted&&!x.ok);
-  target.innerHTML=`<div style="text-align:left;margin-top:20px">${wrong.map((x,i)=>`<div class="practice-feedback wrong" style="margin-top:10px"><strong>${i+1}. ${esc(x.topic)} — your answer: ${esc(x.response||'—')}</strong><div>${esc(x.prompt)}</div><div style="margin-top:6px"><b>Correct:</b> ${esc(x.answer)} · ${esc(x.solution)}</div></div>`).join('')}</div>`;
-}
-
-/* ----------------------- scientific calculator ----------------------- */
-const calculatorState={expression:'',result:'0',angleMode:'DEG'};
-
-function calcTokenize(input){
-  const s=input.replace(/\s+/g,'');
-  const tokens=[]; let i=0;
-  while(i<s.length){
-    const ch=s[i];
-    if(/[0-9.]/.test(ch)){
-      let j=i+1; while(j<s.length&&/[0-9.]/.test(s[j])) j++;
-      const raw=s.slice(i,j); if((raw.match(/\./g)||[]).length>1) throw new Error('Invalid number');
-      const num=Number(raw); if(!Number.isFinite(num)) throw new Error('Invalid number'); tokens.push({type:'number',value:num}); i=j; continue;
-    }
-    if(/[+\-*/^()]/.test(ch)){ tokens.push({type:ch,value:ch}); i++; continue; }
-    if(ch==='π'){ tokens.push({type:'number',value:Math.PI}); i++; continue; }
-    if(/[a-z]/i.test(ch)){
-      let j=i+1; while(j<s.length&&/[a-z]/i.test(s[j])) j++;
-      const name=s.slice(i,j).toLowerCase();
-      if(name==='pi') tokens.push({type:'number',value:Math.PI});
-      else if(name==='e') tokens.push({type:'number',value:Math.E});
-      else if(['sin','cos','tan','sqrt','ln','log'].includes(name)) tokens.push({type:'func',value:name});
-      else throw new Error('Unknown function');
-      i=j; continue;
-    }
-    throw new Error('Invalid character');
-  }
-  return tokens;
-}
-
-function calcEvaluate(input,angleMode='DEG'){
-  const tokens=calcTokenize(input); let pos=0;
-  const peek=()=>tokens[pos]; const take=type=>{ if(peek()?.type===type) return tokens[pos++]; return null; };
+function calculateFromInput(commit){ const input=$('#calc-input'),out=$('#calc-result'); const expr=input.value.trim(); if(!expr){out.textContent='0';return;}try{const v=calcEvaluate(expr,state.calc.angle);state.calc.result=Number.isInteger(v)?String(v):String(round(v,10));out.textContent=state.calc.result;if(commit)input.value=state.calc.result;}catch(e){out.textContent='…';} }
+function calcEvaluate(expression,angleMode='DEG'){
+  let s=String(expression).trim().replace(/[×·]/g,'*').replace(/÷/g,'/').replace(/[−–—]/g,'-').replace(/π/g,'pi').replace(/√/g,'sqrt').replace(/\s+/g,'');
+  if(!s)throw new Error('Empty expression');
+  let i=0;
+  const peek=()=>s[i]; const eat=c=>{if(s[i]===c){i++;return true;}return false;};
+  const isStart=ch=>ch!==undefined&&(ch==='('||ch==='.'||/[0-9A-Za-z_]/.test(ch));
+  function number(){const m=s.slice(i).match(/^(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?/);if(!m)return null;i+=m[0].length;return Number(m[0]);}
+  function ident(){const m=s.slice(i).match(/^[A-Za-z_]+/);if(!m)return null;i+=m[0].length;return m[0].toLowerCase();}
   function primary(){
-    const n=take('number'); if(n) return n.value;
-    const fn=take('func');
-    if(fn){
-      if(!take('(')) throw new Error('Expected (');
-      const v=expr(); if(!take(')')) throw new Error('Expected )');
-      const trig=x=>angleMode==='DEG'?x*Math.PI/180:x;
-      if(fn.value==='sin') return Math.sin(trig(v));
-      if(fn.value==='cos') return Math.cos(trig(v));
-      if(fn.value==='tan') return Math.tan(trig(v));
-      if(fn.value==='sqrt'){ if(v<0) throw new Error('Domain error'); return Math.sqrt(v); }
-      if(fn.value==='ln'){ if(v<=0) throw new Error('Domain error'); return Math.log(v); }
-      if(fn.value==='log'){ if(v<=0) throw new Error('Domain error'); return Math.log10(v); }
-    }
-    if(take('(')){ const v=expr(); if(!take(')')) throw new Error('Expected )'); return v; }
-    throw new Error('Expected value');
+    if(eat('(')){const v=expr();if(!eat(')'))throw new Error('Missing )');return v;}
+    const n=number();if(n!==null)return n;
+    const id=ident();if(id){if(id==='pi')return Math.PI;if(id==='e')return Math.E; if(!eat('('))throw new Error(`Expected ( after ${id}`);const v=expr();if(!eat(')'))throw new Error('Missing )');const rad=angleMode==='DEG'?v*Math.PI/180:v; const fn={sin:()=>Math.sin(rad),cos:()=>Math.cos(rad),tan:()=>Math.tan(rad),sqrt:()=>Math.sqrt(v),ln:()=>Math.log(v),log:()=>Math.log10(v),abs:()=>Math.abs(v)}[id];if(!fn)throw new Error('Unknown function');const out=fn();if(!Number.isFinite(out))throw new Error('Math error');return out;}
+    throw new Error(`Unexpected token at ${i+1}`);
   }
-  function power(){ const left=primary(); if(take('^')) return left**unary(); return left; }
-  function unary(){ if(take('+')) return unary(); if(take('-')) return -unary(); return power(); }
-  function term(){ let v=unary(); while(true){ if(take('*')) v*=unary(); else if(take('/')){ const d=unary(); if(d===0) throw new Error('Cannot divide by zero'); v/=d; } else return v; } }
-  function expr(){ let v=term(); while(true){ if(take('+')) v+=term(); else if(take('-')) v-=term(); else return v; } }
-  if(!tokens.length) return 0;
-  const out=expr(); if(pos!==tokens.length) throw new Error('Check expression');
-  if(!Number.isFinite(out)) throw new Error('Math error');
-  return Math.abs(out)<1e-14?0:out;
+  function unary(){if(eat('+'))return unary();if(eat('-'))return -unary();return primary();}
+  function power(){let left=unary();if(eat('^'))left=Math.pow(left,power());return left;}
+  function term(){let left=power();while(true){if(eat('*'))left*=power();else if(eat('/')){const d=power();if(d===0)throw new Error('Division by zero');left/=d;}else if(eat('%'))left/=100;else if(isStart(peek()))left*=power();else break;}return left;}
+  function expr(){let left=term();while(true){if(eat('+'))left+=term();else if(eat('-'))left-=term();else break;}return left;}
+  const value=expr();if(i!==s.length)throw new Error('Invalid expression');if(!Number.isFinite(value))throw new Error('Math error');return value;
 }
 
-function renderCalculator(){
-  if($('#calc-expression')) $('#calc-expression').textContent=calculatorState.expression||'0';
-  if($('#calc-result')) $('#calc-result').textContent=calculatorState.result;
-  if($('#calc-mode')) $('#calc-mode').textContent=calculatorState.angleMode;
-}
-function openCalculator(){ $('#calculator-overlay')?.classList.add('open'); renderCalculator(); }
-function closeCalculator(){ $('#calculator-overlay')?.classList.remove('open'); }
-function calculatorInput(token){ calculatorState.expression+=token; renderCalculator(); }
-function calculatorEquals(){
-  try{
-    const value=calcEvaluate(calculatorState.expression,calculatorState.angleMode);
-    calculatorState.result=Number.isInteger(value)?String(value):String(round(value,10));
-  }catch(e){ calculatorState.result=e.message||'Error'; }
-  renderCalculator();
-}
+/* ------------------------- BOOT ------------------------- */
+renderShell();
+loadQuestionBanks();
 
-function bindPracticeEvents(){
-  $('#btn-practice')?.addEventListener('click',()=>{ mode='practice'; show('practice'); if(!practiceState.active) renderPracticeEmpty(); });
-  $('#practice-back')?.addEventListener('click',()=>{ clearInterval(practiceState.elapsedTimer); practiceState.elapsedTimer=null; practiceState.active=false; show('home'); });
-  $('#practice-subject')?.addEventListener('change',e=>{ PRACTICE_CONFIG.subject=e.target.value; PRACTICE_CONFIG.topic='All topics'; renderPracticeTopics(); });
-  $('#practice-levels')?.addEventListener('click',e=>{ const b=e.target.closest('[data-level]'); if(!b)return; PRACTICE_CONFIG.level=b.dataset.level; syncPracticeFilters(); });
-  $('#practice-difficulty')?.addEventListener('change',e=>{ PRACTICE_CONFIG.difficulty=e.target.value; });
-  $('#practice-count')?.addEventListener('change',e=>{ PRACTICE_CONFIG.count=Math.max(1,Math.min(30,Number(e.target.value)||10)); });
-  $('#practice-start')?.addEventListener('click',startPracticeSession);
-  $('#practice-finish')?.addEventListener('click',finishPracticeSession);
-  $('#practice-calculator-btn')?.addEventListener('click',openCalculator);
-  $('#race-calculator-btn')?.addEventListener('click',openCalculator);
-  $('#calc-close')?.addEventListener('click',closeCalculator);
-  $('#calculator-overlay')?.addEventListener('click',e=>{ if(e.target.id==='calculator-overlay') closeCalculator(); });
-  $('#calc-mode')?.addEventListener('click',()=>{ calculatorState.angleMode=calculatorState.angleMode==='DEG'?'RAD':'DEG'; renderCalculator(); });
-  $('#calc-grid')?.addEventListener('click',e=>{
-    const b=e.target.closest('.calc-key'); if(!b)return;
-    const action=b.dataset.action;
-    if(action==='clear'){ calculatorState.expression=''; calculatorState.result='0'; renderCalculator(); return; }
-    if(action==='back'){ calculatorState.expression=calculatorState.expression.slice(0,-1); renderCalculator(); return; }
-    if(action==='equals'){ calculatorEquals(); return; }
-    const token=b.dataset.token;
-    if(token) calculatorInput(token==='pi'?'π':token);
-  });
-}
-
-
-/* --------------------------- boot --------------------------- */
-injectUpgradeStyles();
-injectPracticeStyles();
-ensureSetupControls();
-ensurePracticeUI();
-buildSubjectPicker();
-buildTopics();
-syncToggleUI();
-bindEvents();
-bindPracticeEvents();
+})();
