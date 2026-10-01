@@ -26,7 +26,7 @@ const DEFAULT_QUESTION_BANKS = {
 };
 
 const BUILD_INFO = {
-  version: '5.2.1-grading-fix',
+  version: '5.2.3-room-sync-fix',
   questionBankHost: 'local + authorized imports'
 };
 
@@ -511,11 +511,36 @@ function updateBankIndicator(){
 /* ------------------------- FIREBASE ------------------------- */
 function firebaseReady(){ const c=window.IBRACE_FIREBASE_CONFIG; return !!(window.firebase&&c&&c.apiKey&&c.databaseURL&&!String(c.apiKey).includes('PASTE_')); }
 function db(){ if(state.firebaseDb)return state.firebaseDb; if(!firebaseReady()) throw new Error('Firebase is not configured. Add firebase-config.js with your web config.'); if(!firebase.apps.length) firebase.initializeApp(window.IBRACE_FIREBASE_CONFIG); state.firebaseDb=firebase.database(); return state.firebaseDb; }
-async function roomExists(code){ const snap=await db().ref(`rooms/${code}`).once('value'); return snap.exists(); }
+const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+function normalizeRoomCode(value){ return String(value||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6); }
+function firebaseIdentity(){
+  const c=window.IBRACE_FIREBASE_CONFIG||{};
+  try{return `${c.projectId||'unknown project'} · ${new URL(c.databaseURL).host}`;}catch{return c.projectId||'unknown Firebase project';}
+}
+async function ensureFirebaseConnected(timeoutMs=6500){
+  const database=db();
+  try{database.goOnline();}catch{}
+  const info=database.ref('.info/connected');
+  return await new Promise(resolve=>{
+    let done=false; const finish=value=>{if(done)return;done=true;clearTimeout(timer);info.off('value',listener);resolve(value);};
+    const listener=snap=>{if(snap.val()===true)finish(true);};
+    const timer=setTimeout(()=>finish(false),timeoutMs);
+    info.on('value',listener,()=>finish(false));
+  });
+}
+async function readRoomWithRetry(ref,attempts=4){
+  let lastError=null;
+  for(let i=0;i<attempts;i++){
+    try{const snap=await ref.once('value');if(snap.exists())return snap;}catch(e){lastError=e;if(/permission/i.test(String(e?.message||e)))throw e;}
+    if(i<attempts-1)await sleep(250*(i+1));
+  }
+  if(lastError)throw lastError; return null;
+}
+async function roomExists(code){ const snap=await readRoomWithRetry(db().ref(`rooms/${normalizeRoomCode(code)}`),2); return !!snap; }
 async function uniqueRoomCode(){ for(let i=0;i<15;i++){const code=safeCode();if(!(await roomExists(code)))return code;} throw new Error('Could not create a unique room code. Try again.'); }
-function firebaseMessage(err){ const m=String(err?.message||err); if(/permission/i.test(m))return 'Firebase denied the request. Update Realtime Database rules for rooms.'; return m; }
+function firebaseMessage(err){ const m=String(err?.message||err); if(/permission/i.test(m))return 'Firebase denied the request. Update Realtime Database rules for rooms.'; if(/network|offline|failed to fetch|disconnected/i.test(m))return 'Could not reach Firebase. Check your connection and try again.'; return m; }
 function detachRoom(){ if(state.roomRef&&state.roomListener) state.roomRef.off('value',state.roomListener); state.roomRef=null; state.roomListener=null; }
-function attachRoom(code){ detachRoom(); state.roomRef=db().ref(`rooms/${code}`); state.roomListener=s=>syncRoom(s.val()); state.roomRef.on('value',state.roomListener,err=>toast(firebaseMessage(err))); }
+function attachRoom(code){ detachRoom(); state.roomRef=db().ref(`rooms/${normalizeRoomCode(code)}`); state.roomListener=s=>syncRoom(s.val()); state.roomRef.on('value',state.roomListener,err=>toast(firebaseMessage(err))); }
 async function updateOwn(patch){ if(!state.roomRef||!state.playerKey)return; await state.roomRef.child(`players/${state.playerKey}`).update(patch); }
 function connectedPlayers(room=state.room){ return Object.entries(room?.players||{}).filter(([,p])=>p?.connected).map(([key,p])=>({...p,key})); }
 
@@ -523,11 +548,13 @@ async function createRoom(){
   const err=$('#setup-error'); if(err)err.textContent='';
   try{
     if(state.bankStatus.race!=='ok') throw new Error(`Race question bank is unavailable: ${state.bankErrors.race||'not loaded'}`);
+    if(!(await ensureFirebaseConnected())) throw new Error('Could not connect to Firebase. The room was not created.');
     state.playerName=$('#host-name')?.value.trim()||state.playerName||'Host';
     state.config.maxPlayers=Number($('#max-players')?.value)||6; state.config.count=Number($('#race-count')?.value)||10; state.config.time=Number($('#race-time')?.value)||0;
     const questions=chooseRaceQuestions(state.config.count,[]); const code=await uniqueRoomCode(); const ref=db().ref(`rooms/${code}`);
     const now=firebase.database.ServerValue.TIMESTAMP;
-    await ref.set({status:'lobby',round:1,createdAt:now,config:{...state.config},questions,recentQuestionIds:questions.map(q=>q.id),players:{p1:{name:state.playerName,connected:true,score:0,status:'Ready',finished:false,question:0,sessionId:state.sessionId,joinedAt:now}}});
+    await ref.set({roomCode:code,status:'lobby',round:1,createdAt:now,firebaseProject:window.IBRACE_FIREBASE_CONFIG?.projectId||'',config:{...state.config},questions,recentQuestionIds:questions.map(q=>q.id),players:{p1:{name:state.playerName,connected:true,score:0,status:'Ready',finished:false,question:0,sessionId:state.sessionId,joinedAt:now}}});
+    const confirmed=await readRoomWithRetry(ref,3); if(!confirmed)throw new Error('Firebase did not confirm the room creation. Please try again.');
     state.roomCode=code; state.playerKey='p1'; state.isHost=true; await ref.child('players/p1').onDisconnect().update({connected:false,status:'Disconnected'}); setScreen('lobby'); attachRoom(code);
   }catch(e){ if(err)err.textContent=firebaseMessage(e); }
 }
@@ -535,23 +562,29 @@ async function createRoom(){
 async function joinRoom(){
   const error=$('#join-error'); if(error)error.textContent='';
   try{
-    state.playerName=$('#join-name')?.value.trim()||state.playerName||'Player'; const code=String($('#join-code')?.value||'').trim().toUpperCase();
+    state.playerName=$('#join-name')?.value.trim()||state.playerName||'Player'; const code=normalizeRoomCode($('#join-code')?.value);
     if(!/^[A-Z0-9]{6}$/.test(code)) throw new Error('Enter the full six-character room code.');
-    const ref=db().ref(`rooms/${code}`); const pre=await ref.once('value'); if(!pre.exists()) throw new Error('Room not found.');
-    let reason='Room is full.';
-    const tx=await ref.transaction(room=>{
-      if(!room){reason='Room not found.';return;}
-      if(room.status!=='lobby'){reason='That race has already started.';return;}
-      const max=Number(room.config?.maxPlayers)||6; room.players=room.players||{};
-      let slot=null; for(let i=2;i<=max;i++){const k=`p${i}`;if(!room.players[k]?.connected){slot=k;break;}}
+    if(!(await ensureFirebaseConnected())) throw new Error('Could not connect to Firebase. Check your connection and try again.');
+    const ref=db().ref(`rooms/${code}`); const pre=await readRoomWithRetry(ref,5);
+    if(!pre) throw new Error(`Room ${code} was not found in ${firebaseIdentity()}. Refresh both players and make sure you are using the newest site version.`);
+    const room=pre.val()||{}; if(room.status!=='lobby')throw new Error('That race has already started.');
+    const max=Number(room.config?.maxPlayers)||6; const playersRef=ref.child('players'); let claimedSlot=null; let reason='This room is full.';
+    const tx=await playersRef.transaction(players=>{
+      players=players||{}; let slot=null;
+      for(let i=2;i<=max;i++){const k=`p${i}`;if(!players[k]?.connected){slot=k;break;}}
       if(!slot){reason='This room is full.';return;}
-      room.players[slot]={name:state.playerName,connected:true,score:0,status:'Ready',finished:false,question:0,sessionId:state.sessionId,joinedAt:Date.now()};
-      return room;
+      claimedSlot=slot; players[slot]={name:state.playerName,connected:true,score:0,status:'Ready',finished:false,question:0,sessionId:state.sessionId,joinedAt:Date.now()};
+      return players;
     },undefined,false);
-    if(!tx.committed) throw new Error(reason);
-    const joined=tx.snapshot.val(); const entry=Object.entries(joined.players||{}).find(([,p])=>p?.sessionId===state.sessionId);
-    if(!entry) throw new Error('Joined room, but could not identify your player slot. Refresh and try again.');
-    state.roomCode=code; state.playerKey=entry[0]; state.isHost=false; await ref.child(`players/${state.playerKey}`).onDisconnect().update({connected:false,status:'Disconnected'}); setScreen('lobby'); attachRoom(code);
+    if(!tx.committed||!claimedSlot) throw new Error(reason);
+    const latest=await readRoomWithRetry(ref,3); if(!latest)throw new Error('The room closed while you were joining.');
+    const latestRoom=latest.val()||{};
+    if(latestRoom.status!=='lobby'&&!(latestRoom.status==='started'&&Array.isArray(latestRoom.racePlayerKeys)&&latestRoom.racePlayerKeys.includes(claimedSlot))){
+      try{await ref.child(`players/${claimedSlot}`).transaction(p=>p?.sessionId===state.sessionId?null:p,undefined,false);}catch{}
+      throw new Error('That race started while you were joining. Ask the host for a rematch.');
+    }
+    state.roomCode=code; state.playerKey=claimedSlot; state.isHost=false; await ref.child(`players/${state.playerKey}`).onDisconnect().update({connected:false,status:'Disconnected'}); attachRoom(code);
+    if(latestRoom.status==='started'){state.room=latestRoom;state.activeRound=Number(latestRoom.round)||1;startLocalRace(latestRoom);}else{setScreen('lobby');}
   }catch(e){ if(error)error.textContent=firebaseMessage(e); }
 }
 
