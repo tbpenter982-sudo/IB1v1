@@ -20,19 +20,9 @@ const SUBJECTS = {
   ess:{name:'Environmental Systems & Societies',short:'ESS',icon:'◎',topics:['Ecosystems','Biodiversity','Pollution','Climate Change','Water & Food','Energy & Resources','Sustainability']}
 };
 
-const DEFAULT_QUESTION_BANKS = {
-  race: { url: './questionbanks/race.json', fallback: './questionbanks/race.json' },
-  practice: { url: './questionbanks/practice.json', fallback: './questionbanks/practice.json' }
-};
-
-const BUILD_INFO = {
-  version: '5.2.0-grading',
-  questionBankHost: 'local + authorized imports'
-};
-
 const DEFAULT_CONFIG = {
   subject:'mathAA', level:'HL', hardMode:false,
-  topics:[], subtopics:[], count:10, time:300, maxPlayers:6
+  topics:[...SUBJECTS.mathAA.topics], count:10, time:300, maxPlayers:6
 };
 
 const state = {
@@ -52,7 +42,7 @@ const state = {
   isHost:false,
   activeRound:null,
   race:{questions:[],index:0,score:0,answered:[],hintUsed:false,submitted:false,timer:null,startedAt:0},
-  practiceConfig:{subject:'mathAA',level:'HL',topics:[],subtopics:[],difficulty:'mixed',count:10},
+  practiceConfig:{subject:'mathAA',level:'HL',topic:'All topics',difficulty:'mixed',count:10},
   practice:{active:false,questions:[],index:0,startedAt:0,timer:null},
   calc:{angle:'DEG',result:'0'},
   toastTimer:null
@@ -68,9 +58,8 @@ const shuffle = arr => { const a=[...arr]; for(let i=a.length-1;i>0;i--){ const 
 const prettyTime = sec => { sec=Math.max(0,Math.floor(Number(sec)||0)); return `${String(Math.floor(sec/60)).padStart(2,'0')}:${String(sec%60).padStart(2,'0')}`; };
 const safeCode=()=>Math.random().toString(36).slice(2,8).toUpperCase().padEnd(6,'X').slice(0,6);
 const normalizeText=s=>String(s??'').trim().toLowerCase().replace(/[−–—]/g,'-').replace(/\s+/g,' ').replace(/[.,;:!?]+$/g,'');
-const levelsFor=q=>Array.isArray(q.levels)?q.levels:(Array.isArray(q.level)?q.level:[q.level||'Both']);
+const levelsFor=q=>Array.isArray(q.level)?q.level:[q.level||'Both'];
 const topicsFor=q=>Array.isArray(q.topics)?q.topics:[q.topic].filter(Boolean);
-const subtopicsFor=q=>Array.isArray(q.subtopics)?q.subtopics:[q.subtopic].filter(Boolean);
 
 function toast(message){
   let el=$('#toast');
@@ -134,7 +123,7 @@ function renderHome(){
         </div>
       </aside>
     </div>`;
-  $('#home-create').addEventListener('click',()=>{ state.isHost=true; state.config={...DEFAULT_CONFIG,topics:[],subtopics:[]}; renderSetup(); setScreen('setup'); });
+  $('#home-create').addEventListener('click',()=>{ state.isHost=true; state.config={...DEFAULT_CONFIG,topics:[...SUBJECTS.mathAA.topics]}; renderSetup(); setScreen('setup'); });
   $('#home-join').addEventListener('click',()=>{ renderJoin(); setScreen('join'); });
   $('#home-practice').addEventListener('click',()=>{ renderPractice(); setScreen('practice'); });
 }
@@ -153,7 +142,7 @@ function renderSetup(){
         <div class="form-grid">
           <div class="field"><label>Your name</label><input id="host-name" class="input" maxlength="22" value="${esc(state.playerName==='Player'?'':state.playerName)}" placeholder="e.g. Neil"></div>
           <div class="field"><label>Players</label><select id="max-players" class="select">${[2,3,4,5,6].map(n=>`<option value="${n}" ${c.maxPlayers===n?'selected':''}>Up to ${n}</option>`).join('')}</select></div>
-          <div class="field"><label>Questions</label><select id="race-count" class="select">${[1,3,5,10,15,20,25,30].map(n=>`<option value="${n}" ${c.count===n?'selected':''}>${n}</option>`).join('')}</select></div>
+          <div class="field"><label>Questions</label><select id="race-count" class="select">${[5,10,15,20,25,30].map(n=>`<option value="${n}" ${c.count===n?'selected':''}>${n}</option>`).join('')}</select></div>
           <div class="field"><label>Timer</label><select id="race-time" class="select">${[[0,'No timer'],[180,'3 min'],[300,'5 min'],[600,'10 min'],[900,'15 min']].map(([v,t])=>`<option value="${v}" ${c.time===v?'selected':''}>${t}</option>`).join('')}</select></div>
         </div>
         <div id="setup-error" class="error-text"></div>
@@ -240,7 +229,7 @@ function renderLobby(){
         <h3>${state.isHost?'Start when ready':'Waiting for host'}</h3>
         <p class="muted" style="line-height:1.55;font-size:.84rem">${state.isHost?'You only need two connected players. More players can join until the race starts.':'The host controls the start. Keep this page open.'}</p>
         <div class="summary-list">
-          <div class="summary-row"><span>Topics</span><b>${cfg.topics?.length?cfg.topics.length:'Mixed'}</b></div><div class="summary-row"><span>Subtopics</span><b>${cfg.subtopics?.length?cfg.subtopics.length:'Mixed'}</b></div>
+          <div class="summary-row"><span>Topics</span><b>${cfg.topics?.length||0}</b></div>
           <div class="summary-row"><span>Timer</span><b>${cfg.time?prettyTime(cfg.time):'∞'}</b></div>
           <div class="summary-row"><span>Scoring</span><b>${cfg.hardMode?'+2 / −1':'1 per correct'}</b></div>
         </div>
@@ -369,7 +358,7 @@ function renderPractice(){
         <div class="setup-section" style="margin-top:14px"><div class="label">Level</div><div class="segmented" id="practice-level"><button class="seg-btn ${c.level==='SL'?'selected':''}" data-level="SL">SL</button><button class="seg-btn ${c.level==='HL'?'selected':''}" data-level="HL">HL</button></div></div>
         <div class="setup-section"><div class="label">Difficulty</div><select id="practice-difficulty" class="select"><option value="mixed">Mixed 1–5</option>${[1,2,3,4,5].map(n=>`<option value="${n}" ${String(c.difficulty)===String(n)?'selected':''}>${n} · ${['Foundation','Standard','Challenging','Hard','Brutal'][n-1]}</option>`).join('')}</select></div>
         <div class="setup-section"><div class="label">Topic</div><select id="practice-topic" class="select"><option>All topics</option>${SUBJECTS[c.subject].topics.map(t=>`<option ${c.topic===t?'selected':''}>${esc(t)}</option>`).join('')}</select></div>
-        <div class="setup-section"><div class="label">Questions</div><select id="practice-count" class="select">${[1,3,5,10,15,20,30].map(n=>`<option value="${n}" ${c.count===n?'selected':''}>${n}</option>`).join('')}</select></div>
+        <div class="setup-section"><div class="label">Questions</div><select id="practice-count" class="select">${[5,10,15,20,30].map(n=>`<option value="${n}" ${c.count===n?'selected':''}>${n}</option>`).join('')}</select></div>
         <div id="practice-pool" class="bank-note"></div>
         <button class="btn primary full" id="practice-start" style="margin-top:14px">Start practice →</button>
       </aside>
@@ -444,7 +433,7 @@ function stopPracticeTimer(){ clearInterval(state.practice.timer); state.practic
 /* ------------------------- QUESTION BANK ------------------------- */
 async function loadQuestionBanks(){
   await Promise.all(['race','practice'].map(async kind=>{
-    const source=window.IBRACE_QUESTION_BANKS?.[kind] || DEFAULT_QUESTION_BANKS[kind];
+    const source=window.IBRACE_QUESTION_BANKS?.[kind];
     if(!source){ state.bankStatus[kind]='error'; state.bankErrors[kind]=`No ${kind} URL configured.`; return; }
     try{
       const primary=typeof source==='string'?source:source.url;
@@ -523,6 +512,7 @@ async function createRoom(){
   const err=$('#setup-error'); if(err)err.textContent='';
   try{
     if(state.bankStatus.race!=='ok') throw new Error(`Race question bank is unavailable: ${state.bankErrors.race||'not loaded'}`);
+    if(!state.config.topics.length) throw new Error('Select at least one topic.');
     state.playerName=$('#host-name')?.value.trim()||state.playerName||'Host';
     state.config.maxPlayers=Number($('#max-players')?.value)||6; state.config.count=Number($('#race-count')?.value)||10; state.config.time=Number($('#race-time')?.value)||0;
     const questions=chooseRaceQuestions(state.config.count,[]); const code=await uniqueRoomCode(); const ref=db().ref(`rooms/${code}`);
@@ -643,270 +633,6 @@ function calcEvaluate(expression,angleMode='DEG'){
   function expr(){let left=term();while(true){if(eat('+'))left+=term();else if(eat('-'))left-=term();else break;}return left;}
   const value=expr();if(i!==s.length)throw new Error('Invalid expression');if(!Number.isFinite(value))throw new Error('Math error');return value;
 }
-
-
-/* ==============================================================
-   v5.2 PATCH — syllabus filters, maths rendering & peer grading
-   ============================================================== */
-
-function gradingModeFor(q){ return String(q?.gradingMode||'auto').toLowerCase()==='peer'?'peer':'auto'; }
-function markschemeFor(q){ return Array.isArray(q?.markscheme)?q.markscheme:[]; }
-function maxMarksFor(q){
-  const listed=markschemeFor(q).reduce((sum,m)=>sum+Math.max(0,Number(m?.marks)||1),0);
-  return Math.max(1,Number(q?.marks)||listed||1);
-}
-function safeFirebaseKey(value){ return String(value||'q').replace(/[.#$\[\]\/]/g,'_'); }
-
-function katexHtml(tex,displayMode=false){
-  const source=String(tex??'').trim(); if(!source)return '';
-  if(window.katex?.renderToString){
-    try{return window.katex.renderToString(source,{throwOnError:false,displayMode,strict:'ignore',trust:false});}catch{}
-  }
-  return `<code>${esc(source)}</code>`;
-}
-function unicodeDigitsToAscii(s){
-  const map={'₀':'0','₁':'1','₂':'2','₃':'3','₄':'4','₅':'5','₆':'6','₇':'7','₈':'8','₉':'9','⁰':'0','¹':'1','²':'2','³':'3','⁴':'4','⁵':'5','⁶':'6','⁷':'7','⁸':'8','⁹':'9'};
-  return [...String(s||'')].map(ch=>map[ch]??ch).join('');
-}
-function autoMathifyLegacy(text){
-  let s=String(text??'');
-  // Fix the most visibly broken legacy notation while new/imported questions use real LaTeX delimiters.
-  s=s.replace(/∫([₀₁₂₃₄₅₆₇₈₉]+)?\^?([−-]?\d+(?:\.\d+)?)?\s+([^.,;!?]+?)\s+d([a-zA-Z])/g,(m,lo,hi,body,v)=>{
-    const low=lo?unicodeDigitsToAscii(lo):''; const high=hi?unicodeDigitsToAscii(hi):'';
-    let b=unicodeDigitsToAscii(body).replace(/([A-Za-z0-9)])2\b/g,'$1^2').replace(/([A-Za-z0-9)])3\b/g,'$1^3');
-    return `$\\int${low?`_{${low}}`:''}${high?`^{${high}}`:''} ${b}\\,d${v}$`;
-  });
-  return s;
-}
-function renderRichText(value){
-  const source=autoMathifyLegacy(value); const re=/(\\\[(.+?)\\\]|\\\((.+?)\\\)|\$\$(.+?)\$\$|\$([^$\n]+?)\$)/gs;
-  let out='',last=0,m;
-  while((m=re.exec(source))){
-    out+=esc(source.slice(last,m.index));
-    const tex=m[2]??m[3]??m[4]??m[5]??''; const display=!!(m[2]||m[4]);
-    out+=`<span class="math-render ${display?'display':''}">${katexHtml(tex,display)}</span>`; last=re.lastIndex;
-  }
-  out+=esc(source.slice(last)); return out.replace(/\n/g,'<br>');
-}
-function renderQuestionPrompt(q){ return renderRichText(q.promptLatex||q.prompt); }
-function renderQuestionExpression(q){
-  const tex=q.expressionLatex||q.math||q.latex;
-  if(tex)return `<div class="question-expression math-expression">${katexHtml(tex,true)}</div>`;
-  return q.expression?`<div class="question-expression">${renderRichText(q.expression)}</div>`:'';
-}
-function renderHintContent(q){ return renderRichText(questionHint(q)); }
-
-function normalizeQuestionV52(q,kind,index){
-  if(!q||typeof q!=='object') throw new Error(`${kind} question ${index+1} is not an object.`);
-  const id=String(q.id||`${kind}-${index+1}`), subject=String(q.subject||'');
-  if(!SUBJECTS[subject]) throw new Error(`${id}: unknown subject "${subject}".`);
-  const levels=levelsFor(q).map(String); if(!levels.some(l=>['SL','HL','Both'].includes(l))) throw new Error(`${id}: level must be SL, HL, Both, or an array.`);
-  const topics=topicsFor(q).map(String); if(!topics.length) throw new Error(`${id}: missing topic.`);
-  const subtopics=(subtopicsFor(q).length?subtopicsFor(q):[q.subtopic||topics[0]]).map(String);
-  const difficulty=clamp(Number(q.difficulty)||3,1,5); if(!String(q.prompt||'').trim()&&!String(q.promptLatex||'').trim()) throw new Error(`${id}: missing prompt.`);
-  const gradingMode=gradingModeFor(q); if(gradingMode==='auto'&&(q.answer===undefined||q.answer===null)) throw new Error(`${id}: auto-graded question is missing answer.`);
-  const options=Array.isArray(q.options)?q.options.map(String):null;
-  const type=q.type||(options?'mcq':typeof q.answer==='number'?'numeric':'text');
-  const acceptedAnswers=Array.isArray(q.acceptedAnswers)?q.acceptedAnswers:(Array.isArray(q.aliases)?q.aliases:[]);
-  const markscheme=markschemeFor(q).map((m,i)=>typeof m==='string'?{code:`M${i+1}`,text:m,marks:1}:{code:String(m.code||`M${i+1}`),text:String(m.text||m.criterion||''),marks:Math.max(1,Number(m.marks)||1)});
-  return {...q,id,subject,level:levels,levels,topics,topic:String(q.topic||topics[0]),subtopics,subtopic:String(q.subtopic||subtopics[0]||q.topic||topics[0]),difficulty,
-    prompt:String(q.prompt||q.promptLatex||''),promptLatex:String(q.promptLatex||''),expression:String(q.expression||''),expressionLatex:String(q.expressionLatex||''),type,options,
-    aliases:acceptedAnswers,acceptedAnswers,tolerance:Number(q.tolerance)||0,explanation:String(q.explanation||''),gradingMode,markscheme,marks:Math.max(1,Number(q.marks)||markscheme.reduce((s,m)=>s+m.marks,0)||1),bank:kind};
-}
-normalizeQuestion=normalizeQuestionV52;
-
-questionMatchesLevel=function(q,level){ const ls=levelsFor(q); return ls.includes('Both')||ls.includes(level); };
-questionMatchesTopics=function(q,selected){ return !selected?.length||topicsFor(q).some(t=>selected.includes(t)); };
-function questionMatchesSubtopics(q,selected){ return !selected?.length||subtopicsFor(q).some(t=>selected.includes(t)); }
-function availableTopics(kind,subject,level){
-  const fromBank=[...new Set((state.banks[kind]||[]).filter(q=>q.subject===subject&&questionMatchesLevel(q,level)).flatMap(topicsFor))];
-  return fromBank.length?fromBank:[...(SUBJECTS[subject]?.topics||[])];
-}
-function availableSubtopics(kind,subject,level,topics=[]){
-  return [...new Set((state.banks[kind]||[]).filter(q=>q.subject===subject&&questionMatchesLevel(q,level)&&questionMatchesTopics(q,topics)).flatMap(subtopicsFor))].filter(Boolean).sort((a,b)=>a.localeCompare(b));
-}
-matchingRacePool=function(c=state.config){
-  return state.banks.race.filter(q=>q.subject===c.subject&&questionMatchesLevel(q,c.level)&&questionMatchesTopics(q,c.topics)&&questionMatchesSubtopics(q,c.subtopics)
-    &&Number(q.difficulty)>=(c.hardMode?4:1)&&Number(q.difficulty)<=(c.hardMode?5:3)
-    &&(gradingModeFor(q)!=='peer'||markschemeFor(q).length>0));
-};
-matchingPracticePool=function(c=state.practiceConfig){
-  return state.banks.practice.filter(q=>q.subject===c.subject&&questionMatchesLevel(q,c.level)&&questionMatchesTopics(q,c.topics)&&questionMatchesSubtopics(q,c.subtopics)
-    &&gradingModeFor(q)!=='peer'&&(c.difficulty==='mixed'||Number(q.difficulty)===Number(c.difficulty)));
-};
-
-function renderChoiceChips(rootSelector,items,selected,onChange,allLabel='Mixed / All'){
-  const root=$(rootSelector); if(!root)return; const all=!selected?.length||selected.length===items.length;
-  root.innerHTML=`<button class="chip all-chip ${all?'selected':''}" data-all="1">${esc(allLabel)}</button>`+items.map(t=>`<button class="chip ${!all&&selected.includes(t)?'selected':''}" data-value="${esc(t)}">${esc(t)}</button>`).join('');
-  $('[data-all]',root)?.addEventListener('click',()=>onChange([]));
-  $$('[data-value]',root).forEach(b=>b.addEventListener('click',()=>{
-    const value=b.dataset.value; let next=all?[]:[...selected];
-    next=next.includes(value)?next.filter(x=>x!==value):[...next,value];
-    onChange(next);
-  }));
-}
-
-renderSetup=function(){
-  const c=state.config; const topics=availableTopics('race',c.subject,c.level); if(!Array.isArray(c.topics))c.topics=[]; if(!Array.isArray(c.subtopics))c.subtopics=[];
-  if(c.topics.some(t=>!topics.includes(t)))c.topics=[];
-  const subtopics=availableSubtopics('race',c.subject,c.level,c.topics);
-  if(c.subtopics.some(t=>!subtopics.includes(t)))c.subtopics=[];
-  $('#screen-setup').innerHTML=`
-    <div class="backline"><button class="btn ghost" id="setup-back">← Home</button></div>
-    <div class="setup-grid"><div class="panel">
-      <div class="panel-head"><div><h2>Build a race</h2><p>Mix the whole course, or combine exactly the topics and subtopics you want.</p></div></div>
-      <div class="setup-section"><div class="label">Subject</div><div class="subject-grid" id="subject-grid"></div></div>
-      <div class="setup-section"><div class="label">Level</div><div class="segmented" id="level-toggle"><button class="seg-btn ${c.level==='SL'?'selected':''}" data-level="SL">SL</button><button class="seg-btn ${c.level==='HL'?'selected':''}" data-level="HL">HL</button></div></div>
-      <div class="setup-section"><div class="label">Race mode</div><div class="segmented" id="hard-toggle"><button class="seg-btn ${!c.hardMode?'selected':''}" data-hard="false">Normal · 1 pt</button><button class="seg-btn ${c.hardMode?'selected':''}" data-hard="true">🔥 Hard · +2 / −1</button></div></div>
-      <div class="setup-section"><div class="label">Topics</div><div class="topic-grid" id="topic-grid"></div></div>
-      <div class="setup-section"><div class="label">Subtopics</div><div class="topic-grid" id="subtopic-grid"></div><div class="muted filter-help">“Mixed / All” draws across every matching subtopic. You can also select several subtopics together.</div></div>
-      <div class="form-grid">
-        <div class="field"><label>Your name</label><input id="host-name" class="input" maxlength="22" value="${esc(state.playerName==='Player'?'':state.playerName)}" placeholder="e.g. Neil"></div>
-        <div class="field"><label>Players</label><select id="max-players" class="select">${[2,3,4,5,6].map(n=>`<option value="${n}" ${c.maxPlayers===n?'selected':''}>Up to ${n}</option>`).join('')}</select></div>
-        <div class="field"><label>Questions</label><select id="race-count" class="select">${[1,3,5,10,15,20,25,30].map(n=>`<option value="${n}" ${c.count===n?'selected':''}>${n}</option>`).join('')}</select></div>
-        <div class="field"><label>Timer</label><select id="race-time" class="select">${[[0,'No timer'],[180,'3 min'],[300,'5 min'],[600,'10 min'],[900,'15 min']].map(([v,t])=>`<option value="${v}" ${c.time===v?'selected':''}>${t}</option>`).join('')}</select></div>
-      </div><div id="setup-error" class="error-text"></div>
-    </div><aside class="summary-box"><h3>Race preview</h3><div class="summary-list" id="setup-summary"></div><div class="bank-note" id="setup-bank-note"></div><button class="btn primary full" id="create-room" style="margin-top:15px">Create room →</button></aside></div>`;
-  renderSubjectButtons('#subject-grid',c.subject,key=>{c.subject=key;c.topics=[];c.subtopics=[];renderSetup();});
-  renderChoiceChips('#topic-grid',topics,c.topics,next=>{c.topics=next;c.subtopics=[];renderSetup();},'Mixed / All topics');
-  renderChoiceChips('#subtopic-grid',subtopics,c.subtopics,next=>{c.subtopics=next;renderSetup();},'Mixed / All subtopics');
-  $('#setup-back').addEventListener('click',leaveToHome);
-  $$('#level-toggle [data-level]').forEach(b=>b.addEventListener('click',()=>{c.level=b.dataset.level;c.topics=[];c.subtopics=[];renderSetup();}));
-  $$('#hard-toggle [data-hard]').forEach(b=>b.addEventListener('click',()=>{c.hardMode=b.dataset.hard==='true';renderSetup();}));
-  $('#max-players').addEventListener('change',e=>{c.maxPlayers=Number(e.target.value);updateSetupSummary();}); $('#race-count').addEventListener('change',e=>{c.count=Number(e.target.value);updateSetupSummary();}); $('#race-time').addEventListener('change',e=>{c.time=Number(e.target.value);updateSetupSummary();});
-  $('#host-name').addEventListener('input',e=>state.playerName=e.target.value.trim()||'Player'); $('#create-room').addEventListener('click',createRoom); updateSetupSummary();
-};
-updateSetupSummary=function(){
-  const c=state.config, bank=matchingRacePool(c), topics=availableTopics('race',c.subject,c.level), subs=availableSubtopics('race',c.subject,c.level,c.topics);
-  if($('#setup-summary'))$('#setup-summary').innerHTML=`<div class="summary-row"><span>Subject</span><b>${esc(SUBJECTS[c.subject].short)} ${c.level}</b></div><div class="summary-row"><span>Mode</span><b>${c.hardMode?'🔥 Hard':'Normal'}</b></div><div class="summary-row"><span>Topics</span><b>${c.topics?.length?`${c.topics.length} selected`:`Mixed · ${topics.length}`}</b></div><div class="summary-row"><span>Subtopics</span><b>${c.subtopics?.length?`${c.subtopics.length} selected`:`Mixed · ${subs.length}`}</b></div><div class="summary-row"><span>Lobby</span><b>${c.maxPlayers} players max</b></div><div class="summary-row"><span>Questions</span><b>${c.count}</b></div><div class="summary-row"><span>Time</span><b>${c.time?prettyTime(c.time):'∞'}</b></div>`;
-  if($('#setup-bank-note'))$('#setup-bank-note').innerHTML=state.bankStatus.race==='ok'?`<b>${bank.length}</b> matching ${c.level} race questions available.${bank.length<c.count?'<br><span style="color:#ffb2be">Pick Mixed/fewer filters, choose fewer questions, or import more questions.</span>':''}`:`Race bank is not ready. ${esc(state.bankErrors.race||'Check questionbank-config.js.')}`;
-};
-
-renderPractice=function(){
-  const c=state.practiceConfig; if(!Array.isArray(c.topics))c.topics=[];if(!Array.isArray(c.subtopics))c.subtopics=[];
-  const topics=availableTopics('practice',c.subject,c.level); const subs=availableSubtopics('practice',c.subject,c.level,c.topics);
-  if(c.topics.some(t=>!topics.includes(t)))c.topics=[]; if(c.subtopics.some(t=>!subs.includes(t)))c.subtopics=[];
-  $('#screen-practice').innerHTML=`<div class="backline"><button class="btn ghost" id="practice-back">← Home</button></div><div class="practice-layout"><aside class="sidebar wide-filters">
-    <div class="label">Subject</div><select id="practice-subject" class="select">${Object.entries(SUBJECTS).map(([k,s])=>`<option value="${k}" ${c.subject===k?'selected':''}>${esc(s.short)}</option>`).join('')}</select>
-    <div class="setup-section" style="margin-top:14px"><div class="label">Level</div><div class="segmented" id="practice-level"><button class="seg-btn ${c.level==='SL'?'selected':''}" data-level="SL">SL</button><button class="seg-btn ${c.level==='HL'?'selected':''}" data-level="HL">HL</button></div></div>
-    <div class="setup-section"><div class="label">Difficulty</div><select id="practice-difficulty" class="select"><option value="mixed">Mixed 1–5</option>${[1,2,3,4,5].map(n=>`<option value="${n}" ${String(c.difficulty)===String(n)?'selected':''}>${n} · ${['Foundation','Standard','Challenging','Hard','Brutal'][n-1]}</option>`).join('')}</select></div>
-    <div class="setup-section"><div class="label">Topics</div><div class="topic-grid compact" id="practice-topics"></div></div><div class="setup-section"><div class="label">Subtopics</div><div class="topic-grid compact" id="practice-subtopics"></div></div>
-    <div class="setup-section"><div class="label">Questions</div><select id="practice-count" class="select">${[1,3,5,10,15,20,30].map(n=>`<option value="${n}" ${c.count===n?'selected':''}>${n}</option>`).join('')}</select></div><div id="practice-pool" class="bank-note"></div><button class="btn primary full" id="practice-start" style="margin-top:14px">Start practice →</button>
-    </aside><main class="practice-workspace" id="practice-workspace"></main></div>`;
-  renderChoiceChips('#practice-topics',topics,c.topics,next=>{c.topics=next;c.subtopics=[];renderPractice();},'Mixed / All'); renderChoiceChips('#practice-subtopics',subs,c.subtopics,next=>{c.subtopics=next;renderPractice();},'Mixed / All');
-  $('#practice-back').addEventListener('click',()=>{stopPracticeTimer();renderHome();setScreen('home');}); $('#practice-subject').addEventListener('change',e=>{c.subject=e.target.value;c.topics=[];c.subtopics=[];renderPractice();});
-  $$('#practice-level [data-level]').forEach(b=>b.addEventListener('click',()=>{c.level=b.dataset.level;c.topics=[];c.subtopics=[];renderPractice();})); $('#practice-difficulty').addEventListener('change',e=>{c.difficulty=e.target.value;renderPracticePoolInfo();}); $('#practice-count').addEventListener('change',e=>{c.count=Number(e.target.value);renderPracticePoolInfo();}); $('#practice-start').addEventListener('click',startPractice);
-  renderPracticePoolInfo(); if(state.practice.active)renderPracticeQuestion();else renderPracticeEmpty();
-};
-
-questionHint=function(q){ if(typeof q.hint==='string')return q.hint; if(q.hint&&typeof q.hint==='object')return q.hint.formula||q.hint.content||q.hint.text||''; return q.formula||''; };
-displayAnswer=function(q){ if(q.answerDisplay!==undefined)return String(q.answerDisplay); if(Array.isArray(q.options)&&typeof q.answer==='string'&&/^[A-D]$/i.test(q.answer)){const i=q.answer.toUpperCase().charCodeAt(0)-65;return `${q.answer.toUpperCase()} — ${q.options[i]??''}`;} return q.answer===undefined?'Peer graded':String(q.answer); };
-
-function normalizeAnswerNotation(v){ return String(v??'').trim().replace(/[×·]/g,'*').replace(/÷/g,'/').replace(/[−–—]/g,'-').replace(/π/g,'pi').replace(/√/g,'sqrt').replace(/²/g,'^2').replace(/³/g,'^3'); }
-function symbolicEquivalent(a,b){
-  if(!window.math)return false; const left=normalizeAnswerNotation(a),right=normalizeAnswerNotation(b); if(!left||!right)return false;
-  try{ const d=window.math.simplify(`(${left})-(${right})`).toString().replace(/\s+/g,''); if(d==='0')return true; }catch{}
-  try{
-    const ast1=window.math.parse(left),ast2=window.math.parse(right); const vars=[...new Set([...ast1.filter(n=>n.isSymbolNode).map(n=>n.name),...ast2.filter(n=>n.isSymbolNode).map(n=>n.name)])].filter(x=>!['e','pi','i'].includes(x));
-    const f1=ast1.compile(),f2=ast2.compile(); const samples=[-2.3,-0.7,0.4,1.6,3.1]; let compared=0;
-    for(let i=0;i<samples.length;i++){const scope={};vars.forEach((v,j)=>scope[v]=samples[(i+j)%samples.length]);let x,y;try{x=Number(f1.evaluate(scope));y=Number(f2.evaluate(scope));}catch{continue;}if(!Number.isFinite(x)||!Number.isFinite(y))continue;compared++;if(Math.abs(x-y)>1e-7*Math.max(1,Math.abs(x),Math.abs(y)))return false;} return compared>=3;
-  }catch{return false;}
-}
-answerIsCorrect=function(q,raw){
-  if(gradingModeFor(q)==='peer')return false; if(raw===undefined||raw===null||String(raw).trim()==='')return false;
-  const answerType=String(q.answerType||q.type||'').toLowerCase(); const accepted=[q.answer,...(q.acceptedAnswers||q.aliases||[])].filter(v=>v!==undefined&&v!==null);
-  if(typeof q.answer==='number'||answerType==='numeric'){
-    let val;try{val=calcEvaluate(String(raw),state.calc.angle);}catch{try{val=Number(normalizeAnswerNotation(raw));}catch{return false;}}
-    const ans=Number(q.answer);if(!Number.isFinite(val)||!Number.isFinite(ans))return false;const tol=Math.max(Number(q.tolerance)||0,Math.abs(ans)*1e-6);return Math.abs(val-ans)<=tol;
-  }
-  const value=normalizeText(raw); const normalized=accepted.map(normalizeText); if(normalized.includes(value))return true;
-  if(Array.isArray(q.options)){ const letter=String(raw).trim().toUpperCase(); if(/^[A-Z]$/.test(letter)&&letter===String(q.answer).trim().toUpperCase())return true; const idx=String(q.answer).trim().toUpperCase().charCodeAt(0)-65;if(idx>=0&&idx<q.options.length&&normalizeText(q.options[idx])===value)return true; }
-  if(['expression','algebraic','exact'].includes(answerType)&&!q.requireExact){ return accepted.some(a=>symbolicEquivalent(raw,a)); }
-  return false;
-};
-
-renderRace=function(){
-  const q=state.race.questions[state.race.index];if(!q){finishLocalRace();return;} const cfg=state.room?.config||state.config,subject=SUBJECTS[cfg.subject],peer=gradingModeFor(q)==='peer';
-  $('#screen-race').innerHTML=`<div class="race-layout"><main><div class="race-top"><div class="race-meta"><span class="tag">${esc(subject?.short||cfg.subject)} ${esc(cfg.level)}</span><span class="tag">${esc(q.topic||'Mixed')}</span>${q.subtopic?`<span class="tag">${esc(q.subtopic)}</span>`:''}${peer?'<span class="tag peer-tag">✎ peer marked</span>':''}${cfg.hardMode?'<span class="tag hard">🔥 HARD</span>':''}<span class="tag">Q${state.race.index+1}/${state.race.questions.length}</span></div><div style="display:flex;align-items:center;gap:8px"><button class="btn secondary" id="race-calc">⌨ Calculator</button><span class="timer" id="race-timer">${cfg.time?'--:--':'∞'}</span></div></div>
-    <section class="question-card"><div class="question-kicker">Difficulty ${q.difficulty}/5 · ${peer?`${maxMarksFor(q)} mark written response`:q.type==='mcq'?'multiple choice':q.type||'question'}</div><div class="question-prompt">${renderQuestionPrompt(q)}</div>${renderQuestionExpression(q)}<div id="race-answer-area"></div><div class="question-tools">${questionHint(q)?`<button class="btn secondary" id="race-hint" ${state.race.hintUsed?'disabled':''}>💡 ${state.race.hintUsed?'Hint used · max 0.6 pt':'Show hint / formula'}</button>`:''}</div>${state.race.hintUsed?`<div class="hint-box"><b>Hint</b><br>${renderHintContent(q)}<br><small>This question is capped at 0.6 race points.</small></div>`:''}<div id="race-feedback"></div></section></main><aside class="leaderboard"><h3>Live standings</h3><div id="leaderboard-list"></div></aside></div>`;
-  renderAnswerArea(q,'race');renderLeaderboard();updateRaceTimer();$('#race-calc').addEventListener('click',openCalculator);$('#race-hint')?.addEventListener('click',()=>{if(state.race.submitted)return;state.race.hintUsed=true;renderRace();updateOwn({status:`Q${state.race.index+1} · used hint`}).catch(()=>{});});
-};
-
-renderAnswerArea=function(q,mode){
-  const target=mode==='race'?$('#race-answer-area'):$('#practice-answer-area');if(!target)return; const current=mode==='race'?state.race:state.practice.questions[state.practice.index]; const submitted=mode==='race'?state.race.submitted:!!current.submitted;
-  if(mode==='race'&&gradingModeFor(q)==='peer'){
-    target.innerHTML=`<div class="peer-submit"><div class="peer-submit-copy"><b>Working required</b><span>Upload a clear photo of your proof/working. It locks when submitted and another racer marks it from the markscheme after the race.</span></div><input id="peer-image" class="file-input" type="file" accept="image/*" capture="environment" ${submitted?'disabled':''}><div id="peer-preview" class="peer-preview"></div><div class="answer-row"><button class="btn secondary" id="peer-skip" ${submitted?'disabled':''}>Skip</button><button class="btn primary" id="peer-submit" ${submitted?'disabled':''}>Submit photo</button></div></div>`;
-    let data=''; const input=$('#peer-image',target); input?.addEventListener('change',async()=>{const f=input.files?.[0];if(!f)return;try{data=await compressImage(f);state.race.peerDraftData=data;$('#peer-preview',target).innerHTML=`<img src="${data}" alt="Your uploaded working preview">`;}catch(e){toast(String(e.message||e));}});
-    $('#peer-submit',target)?.addEventListener('click',()=>submitPeerRaceAnswer(state.race.peerDraftData||data,false)); $('#peer-skip',target)?.addEventListener('click',()=>submitPeerRaceAnswer('',true)); return;
-  }
-  const selected=mode==='race'?state.race.selectedAnswer:current.selectedAnswer;
-  if(Array.isArray(q.options)&&q.options.length){
-    target.innerHTML=`<div class="answer-stack">${q.options.map((opt,i)=>{const letter=String.fromCharCode(65+i);let cls=selected===letter?'selected':'';if(submitted){const correct=answerIsCorrect(q,letter);if(correct)cls+=' correct';else if(selected===letter)cls+=' wrong';}return `<button class="choice ${cls}" data-choice="${letter}" ${submitted?'disabled':''}><span class="choice-letter">${letter}</span><span>${renderRichText(opt)}</span></button>`;}).join('')}</div>${!submitted?'<button class="btn primary" id="submit-choice" disabled>Submit answer</button>':''}`;
-    $$('[data-choice]',target).forEach(b=>b.addEventListener('click',()=>{if(mode==='race'){state.race.selectedAnswer=b.dataset.choice;renderAnswerArea(q,'race');}else{current.selectedAnswer=b.dataset.choice;renderAnswerArea(q,'practice');}}));const submit=$('#submit-choice',target);if(submit){submit.disabled=!selected;submit.addEventListener('click',()=>mode==='race'?submitRaceAnswer(selected):submitPracticeAnswer(selected));}
-  }else{
-    const existing=mode==='race'?(state.race.typedAnswer||''):(current.typedAnswer||'');target.innerHTML=`<div class="answer-row"><input class="input" id="typed-answer" autocomplete="off" ${submitted?'disabled':''} value="${esc(existing)}" placeholder="Type your final answer…"><button class="btn primary" id="submit-typed" ${submitted?'disabled':''}>Submit</button></div>`;const input=$('#typed-answer',target);input?.addEventListener('input',e=>{if(mode==='race')state.race.typedAnswer=e.target.value;else current.typedAnswer=e.target.value;});input?.addEventListener('keydown',e=>{if(e.key==='Enter'&&!submitted){e.preventDefault();mode==='race'?submitRaceAnswer(input.value):submitPracticeAnswer(input.value);}});$('#submit-typed',target)?.addEventListener('click',()=>mode==='race'?submitRaceAnswer(input?.value||''):submitPracticeAnswer(input?.value||''));if(mode==='race'&&!submitted)setTimeout(()=>input?.focus(),0);
-  }
-};
-
-async function compressImage(file){
-  if(!file?.type?.startsWith('image/'))throw new Error('Choose an image file.'); const data=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file);});
-  const img=await new Promise((resolve,reject)=>{const im=new Image();im.onload=()=>resolve(im);im.onerror=reject;im.src=data;}); const max=1300,scale=Math.min(1,max/Math.max(img.width,img.height)),canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(img.width*scale));canvas.height=Math.max(1,Math.round(img.height*scale));canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);const out=canvas.toDataURL('image/jpeg',.72);if(out.length>900000)throw new Error('That photo is still too large after compression. Crop it closer to the working and retry.');return out;
-}
-function advanceRaceAfterSubmit(delay=650){setTimeout(()=>{state.race.index++;state.race.hintUsed=false;state.race.submitted=false;state.race.selectedAnswer='';state.race.typedAnswer='';state.race.peerDraftData='';if(state.race.index>=state.race.questions.length)finishLocalRace();else{updateOwn({status:`On Q${state.race.index+1}`,question:state.race.index+1}).catch(()=>{});renderRace();}},delay);}
-async function submitPeerRaceAnswer(imageData,skipped=false){
-  if(state.race.submitted)return;const q=state.race.questions[state.race.index];if(!q||gradingModeFor(q)!=='peer')return;if(!skipped&&!imageData){toast('Upload a photo first.');return;}state.race.submitted=true;const qkey=safeFirebaseKey(q.id);const submission={questionId:q.id,questionIndex:state.race.index,submitterKey:state.playerKey,submitterName:state.playerName,imageData:skipped?'':imageData,skipped:!!skipped,hintUsed:!!state.race.hintUsed,maxMarks:maxMarksFor(q),submittedAt:Date.now(),locked:true};
-  try{await state.roomRef.child(`peerSubmissions/${qkey}/${state.playerKey}`).set(submission);state.race.answered.push({id:q.id,topic:q.topic,subtopic:q.subtopic,peer:true,raw:skipped?'Skipped':'Photo submitted',answer:'Peer graded',delta:0,hintUsed:state.race.hintUsed});await updateOwn({status:skipped?`Q${state.race.index+1} skipped`:`Q${state.race.index+1} photo locked`,question:state.race.index+1});renderRace();const fb=$('#race-feedback');if(fb)fb.innerHTML=`<div class="feedback ${skipped?'bad':'good'}"><b>${skipped?'Skipped':'Photo submitted & locked ✓'}</b>${!skipped?'<br>Your peer will mark it against the markscheme after the race.':''}</div>`;advanceRaceAfterSubmit();}catch(e){state.race.submitted=false;toast(firebaseMessage(e));renderRace();}
-}
-submitRaceAnswer=function(raw){
-  if(state.race.submitted)return;const q=state.race.questions[state.race.index];if(!q)return;if(gradingModeFor(q)==='peer'){toast('Upload your working for this question.');return;}const ok=answerIsCorrect(q,raw),cfg=state.room?.config||state.config;let delta=ok?(state.race.hintUsed?0.6:(cfg.hardMode?2:1)):(cfg.hardMode?-1:0);state.race.score=round(Math.max(0,state.race.score+delta),2);state.race.submitted=true;state.race.answered.push({id:q.id,topic:q.topic,subtopic:q.subtopic,ok,raw,answer:displayAnswer(q),delta,hintUsed:state.race.hintUsed});updateOwn({score:state.race.score,status:ok?`Q${state.race.index+1} correct +${delta}`:`Q${state.race.index+1} submitted`,question:state.race.index+1}).catch(()=>{});renderRace();const fb=$('#race-feedback');if(fb)fb.innerHTML=`<div class="feedback ${ok?'good':'bad'}"><b>${ok?'Correct ✓':`Incorrect · ${delta<0?'−1 point':'0 points'}`}</b>${ok&&state.race.hintUsed?'<br>Hint used: +0.6 points.':''}${!ok?`<br>Correct answer: ${renderRichText(displayAnswer(q))}`:''}</div>`;advanceRaceAfterSubmit(850);
-};
-
-renderPracticeQuestion=function(){
-  const q=state.practice.questions[state.practice.index];if(!q){renderPracticeSummary();return;}const attempted=state.practice.questions.filter(x=>x.submitted).length,correct=state.practice.questions.filter(x=>x.submitted&&x._correct).length,elapsed=Math.floor((Date.now()-state.practice.startedAt)/1000);
-  $('#practice-workspace').innerHTML=`<div class="session-header"><div class="race-meta"><span class="tag">${esc(SUBJECTS[q.subject]?.short||q.subject)} ${esc(state.practiceConfig.level)}</span><span class="tag">${esc(q.topic||'Mixed')}</span>${q.subtopic?`<span class="tag">${esc(q.subtopic)}</span>`:''}<span class="tag">Difficulty ${q.difficulty}/5</span></div><div class="session-stats"><span class="stat-pill"><b id="practice-correct">${correct}</b> correct</span><span class="stat-pill"><b id="practice-attempted">${attempted}</b> attempted</span><span class="stat-pill" id="practice-clock">${prettyTime(elapsed)}</span></div></div><section class="question-card"><div class="question-kicker">Question ${state.practice.index+1} of ${state.practice.questions.length}</div><div class="question-prompt">${renderQuestionPrompt(q)}</div>${renderQuestionExpression(q)}<div id="practice-answer-area"></div><div class="question-tools">${questionHint(q)?`<button class="btn secondary" id="practice-hint">💡 ${q.hintShown?'Hint shown':'Show hint / formula'}</button>`:''}<button class="btn secondary" id="practice-flag">${q.flagged?'⚑ Flagged':'⚐ Flag'}</button><button class="btn secondary" id="practice-calc">⌨ Calculator</button></div>${q.hintShown?`<div class="hint-box"><b>Hint</b><br>${renderHintContent(q)}</div>`:''}${q.submitted?`<div class="feedback ${q._correct?'good':'bad'}"><b>${q._correct?'Correct ✓':'Incorrect'}</b>${!q._correct?`<br>Correct answer: ${renderRichText(displayAnswer(q))}`:''}${q.explanation?`<br><br>${renderRichText(q.explanation)}`:''}</div>`:''}<div class="nav-dots" id="practice-nav">${state.practice.questions.map((x,i)=>`<button class="qdot ${i===state.practice.index?'current':''} ${x.submitted?(x._correct?'correct':'wrong'):''} ${x.flagged?'flagged':''}" data-index="${i}">${i+1}</button>`).join('')}</div><div style="display:flex;justify-content:space-between;gap:8px;margin-top:18px;flex-wrap:wrap"><button class="btn secondary" id="practice-prev" ${state.practice.index===0?'disabled':''}>← Previous</button><div style="display:flex;gap:8px"><button class="btn danger" id="practice-finish">Finish set</button><button class="btn primary" id="practice-next">${state.practice.index===state.practice.questions.length-1?'Finish':'Next →'}</button></div></div></section>`;
-  renderAnswerArea(q,'practice');$('#practice-hint')?.addEventListener('click',()=>{q.hintShown=true;renderPracticeQuestion();});$('#practice-flag').addEventListener('click',()=>{q.flagged=!q.flagged;renderPracticeQuestion();});$('#practice-calc').addEventListener('click',openCalculator);$('#practice-prev').addEventListener('click',()=>{state.practice.index--;renderPracticeQuestion();});$('#practice-next').addEventListener('click',()=>{if(state.practice.index>=state.practice.questions.length-1)renderPracticeSummary();else{state.practice.index++;renderPracticeQuestion();}});$('#practice-finish').addEventListener('click',renderPracticeSummary);$$('#practice-nav [data-index]').forEach(b=>b.addEventListener('click',()=>{state.practice.index=Number(b.dataset.index);renderPracticeQuestion();}));
-};
-
-hostStartRace=async function(){
-  try{const room=state.room;if(!state.isHost)return;const players=connectedPlayers(room);if(players.length<2)throw new Error('At least two players are required.');await state.roomRef.update({status:'started',startedAt:firebase.database.ServerValue.TIMESTAMP,racePlayerKeys:players.map(p=>p.key)});}catch(e){const el=$('#lobby-error');if(el)el.textContent=firebaseMessage(e);}
-};
-function peerQuestions(){return state.race.questions.filter(q=>gradingModeFor(q)==='peer');}
-function ensurePeerScreen(){let s=$('#screen-peer-grade');if(!s){s=document.createElement('section');s.id='screen-peer-grade';s.className='screen';s.dataset.screen='peer-grade';$('#screen-results')?.before(s);}return s;}
-function participantKeys(){const fixed=Array.isArray(state.room?.racePlayerKeys)?state.room.racePlayerKeys:connectedPlayers(state.room).map(p=>p.key);return fixed.filter(Boolean);}
-function assignedSubmissionFor(q){const keys=participantKeys();if(keys.length<2)return null;const i=keys.indexOf(state.playerKey);if(i<0)return null;const submitter=keys[(i-1+keys.length)%keys.length];const qkey=safeFirebaseKey(q.id);return {submitter,qkey,submission:state.room?.peerSubmissions?.[qkey]?.[submitter]||null,grade:state.room?.peerGrades?.[qkey]?.[submitter]||null};}
-function scorePeerMarks(q,marks,hintUsed){const ratio=clamp(Number(marks)/maxMarksFor(q),0,1),base=(state.room?.config?.hardMode?2:1),raw=ratio*base;return round(hintUsed?Math.min(raw,.6):raw,2);}
-
-function renderPeerGrading(){
-  ensurePeerScreen();const qs=peerQuestions();if(!qs.length){completePeerGrading();return;}const assignments=qs.map(q=>({q,...assignedSubmissionFor(q)}));const todo=assignments.find(a=>!a.grade&&a.submission&&!a.submission.skipped);const waiting=assignments.some(a=>!a.grade&&!a.submission);const skipped=assignments.filter(a=>a.submission?.skipped&&!a.grade);
-  skipped.forEach(a=>recordSkippedPeerGrade(a.q,a.submitter,a.qkey).catch(()=>{}));
-  if(!todo){
-    if(waiting){$('#screen-peer-grade').innerHTML=`<div class="panel peer-wait"><div class="result-icon">✎</div><h2>Waiting for written submissions</h2><p class="muted">You finished solving. As soon as the racer assigned to you submits or skips their proof question, their photo and markscheme will appear here.</p><div class="grading-progress">${assignments.filter(a=>a.grade||a.submission?.skipped).length}/${assignments.length} grading tasks resolved</div></div>`;setScreen('peer-grade');return;}
-    completePeerGrading();return;
-  }
-  const q=todo.q,sub=todo.submission,scheme=markschemeFor(q);const playerName=state.room?.players?.[todo.submitter]?.name||'Peer';
-  $('#screen-peer-grade').innerHTML=`<div class="backline"><span class="tag peer-tag">Peer grading · ${assignments.filter(a=>a.grade).length+1}/${assignments.length}</span></div><div class="grading-layout"><section class="question-card"><div class="question-kicker">Grade ${esc(playerName)} · ${maxMarksFor(q)} marks</div><div class="question-prompt">${renderQuestionPrompt(q)}</div>${renderQuestionExpression(q)}<div class="submission-photo"><img src="${sub.imageData}" alt="Uploaded handwritten response from ${esc(playerName)}"></div></section><aside class="grading-card"><div class="grading-lock">🔒 Markscheme revealed only after submissions were locked.</div><h3>Markscheme</h3><div class="markscheme-list">${scheme.map((m,i)=>`<div class="mark-row"><div><b>${esc(m.code||`M${i+1}`)}</b><span>${renderRichText(m.text||m.criterion||'')}</span></div><select class="select mark-select" data-marks="${Math.max(1,Number(m.marks)||1)}">${Array.from({length:Math.max(1,Number(m.marks)||1)+1},(_,v)=>`<option value="${v}">${v}/${Math.max(1,Number(m.marks)||1)}</option>`).join('')}</select></div>`).join('')}</div><div class="grade-total">Award <b id="grade-total">0</b> / ${maxMarksFor(q)} marks</div>${sub.hintUsed?'<div class="bank-note">Hint was used: race score from this response is capped at <b>0.6</b>.</div>':''}<button class="btn primary full" id="submit-grade">Lock grade →</button></aside></div>`;
-  setScreen('peer-grade');$$('.mark-select').forEach(x=>x.addEventListener('change',()=>{$('#grade-total').textContent=$$('.mark-select').reduce((s,e)=>s+Number(e.value),0);}));$('#submit-grade').addEventListener('click',()=>submitPeerGrade(q,todo.submitter,todo.qkey,sub));
-}
-async function recordSkippedPeerGrade(q,submitter,qkey){const ref=state.roomRef.child(`peerGrades/${qkey}/${submitter}`);const tx=await ref.transaction(v=>v||{graderKey:state.playerKey,marksAwarded:0,maxMarks:maxMarksFor(q),delta:0,skipped:true,gradedAt:Date.now()},undefined,false);return tx.committed;}
-async function submitPeerGrade(q,submitter,qkey,submission){
-  const marks=$$('.mark-select').reduce((s,e)=>s+Number(e.value),0),max=maxMarksFor(q),delta=scorePeerMarks(q,marks,submission.hintUsed);const ref=state.roomRef.child(`peerGrades/${qkey}/${submitter}`);const grade={graderKey:state.playerKey,marksAwarded:marks,maxMarks:max,delta,hintUsed:!!submission.hintUsed,gradedAt:Date.now()};
-  try{const tx=await ref.transaction(v=>v||grade,undefined,false);if(!tx.committed){toast('This response was already graded.');return;}await state.roomRef.child(`players/${submitter}/score`).transaction(v=>round(Math.max(0,(Number(v)||0)+delta),2));await state.roomRef.child(`peerSubmissions/${qkey}/${submitter}`).update({graded:true});renderPeerGrading();}catch(e){toast(firebaseMessage(e));}
-}
-async function completePeerGrading(){try{await updateOwn({gradingDone:true,finished:true,status:'Finished'});}catch{}renderResults();setScreen('results');}
-
-finishLocalRace=function(){
-  clearInterval(state.race.timer);state.race.timer=null;updateOwn({autoFinished:true,status:peerQuestions().length?'Ready to grade':'Finished',score:state.race.score,question:state.race.questions.length,...(peerQuestions().length?{}:{gradingDone:true,finished:true})}).catch(()=>{});if(peerQuestions().length){ensurePeerScreen();renderPeerGrading();}else{renderResults();setScreen('results');}
-};
-
-const syncRoomBase=syncRoom;
-syncRoom=function(room){
-  if(!room){toast('Room closed.');leaveToHome();return;}state.room=room;if(room.config)state.config={...state.config,...room.config};if(state.screen==='lobby')renderLobby();if(state.screen==='race')renderLeaderboard();if(state.screen==='peer-grade')renderPeerGrading();if(state.screen==='results')renderResults();const round=Number(room.round)||1;if(room.status==='started'&&state.activeRound!==round){state.activeRound=round;startLocalRace(room);}if(room.status==='lobby'&&state.activeRound!==null&&state.activeRound!==round){state.activeRound=null;resetLocalRace();renderLobby();setScreen('lobby');}
-};
-
-renderResults=function(){
-  const players=(state.room?.racePlayerKeys||connectedPlayers(state.room).map(p=>p.key)).map(k=>({...state.room?.players?.[k],key:k})).filter(p=>p.name).sort((a,b)=>(Number(b.score)||0)-(Number(a.score)||0));const me=players.find(p=>p.key===state.playerKey),rank=Math.max(1,players.findIndex(p=>p.key===state.playerKey)+1),allFinished=players.length>0&&players.every(p=>p.finished);const peerGrades=state.room?.peerGrades||{};
-  $('#screen-results').innerHTML=`<div class="panel"><div class="result-hero"><div class="result-icon">${rank===1?'🏆':'⚡'}</div><div class="eyebrow">${allFinished?'race complete':'results updating'}</div><h2>${rank===1?'You are currently #1':`You are currently #${rank}`}</h2><p class="muted">Your score: <b style="color:var(--text)">${formatScore(me?.score??state.race.score)}</b>${!allFinished?' · waiting for remaining peer grades':''}</p></div><div class="podium">${players.slice(0,3).map((p,i)=>`<div class="podium-card"><div style="font-size:1.5rem">${['🥇','🥈','🥉'][i]}</div><b>${esc(p.name)}</b><div style="font-size:1.5rem;font-weight:950;margin-top:8px">${formatScore(p.score)}</div><small class="muted">${esc(p.status||'')}</small></div>`).join('')}</div><div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap"><button class="btn secondary" id="results-home">Leave room</button>${state.isHost?`<button class="btn primary" id="rematch" ${allFinished?'':'disabled'}>${allFinished?'Rematch →':'Waiting for grading…'}</button>`:''}</div><div class="review-list">${state.race.answered.map((a,i)=>{let delta=a.delta,mark='';if(a.peer){const g=peerGrades?.[safeFirebaseKey(a.id)]?.[state.playerKey];delta=g?.delta??0;mark=g?`${g.marksAwarded}/${g.maxMarks} marks`:'pending peer grade';}return `<div class="review-item"><span class="review-mark ${a.peer?(mark.startsWith('pending')?'':'ok'):(a.ok?'ok':'no')}">${a.peer?'✎':a.ok?'✓':'×'}</span><span><b>Q${i+1} · ${esc(a.topic||'')}${a.subtopic?` · ${esc(a.subtopic)}`:''}</b><br><small class="muted">${a.peer?mark:`Your answer: ${esc(a.raw||'—')}`}${a.hintUsed?' · hint used':''}</small></span><span style="font-weight:900">${delta>0?'+':''}${formatScore(delta)}</span></div>`;}).join('')}</div></div>`;$('#results-home').addEventListener('click',leaveRoom);$('#rematch')?.addEventListener('click',hostRematch);
-};
 
 /* ------------------------- BOOT ------------------------- */
 renderShell();

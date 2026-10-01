@@ -1,10 +1,10 @@
 /* Rename this file to firebase-config.js and paste your Firebase web config. */
 window.IBRACE_FIREBASE_CONFIG = {
-  apiKey: 'PASTE_API_KEY',
-  authDomain: 'PASTE_PROJECT.firebaseapp.com',
-  databaseURL: 'https://PASTE_PROJECT-default-rtdb.europe-west1.firebasedatabase.app',
-  projectId: 'PASTE_PROJECT',
-  storageBucket: 'PASTE_PROJECT.appspot.com',
-  messagingSenderId: 'PASTE_SENDER_ID',
-  appId: 'PASTE_APP_ID'
+  apiKey: "AIzaSyAzxgc_DpXgmqQO3JGGWbipJGxOavms9iE",
+  authDomain: "ib-1v1-8622c.firebaseapp.com",
+  databaseURL: "https://ib-1v1-8622c-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "ib-1v1-8622c",
+  storageBucket: "ib-1v1-8622c.firebasestorage.app",
+  messagingSenderId: "202645959851",
+  appId: "1:202645959851:web:94bd4447db87a2e47db3ee"
 };
