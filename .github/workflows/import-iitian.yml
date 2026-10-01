@@ -1,0 +1,67 @@
+name: Import IITian question bank
+
+on:
+  workflow_dispatch:
+    inputs:
+      course:
+        description: "Course to import (all, mathAA-HL, mathAA-SL, mathAI-HL, mathAI-SL, physics-HL, physics-SL, chemistry-HL, chemistry-SL, biology-HL, biology-SL, economics-HL, economics-SL)"
+        required: true
+        default: "all"
+
+permissions:
+  contents: write
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install importer dependencies
+        run: python -m pip install --disable-pip-version-check requests beautifulsoup4
+
+      - name: Import authorized IITian questions
+        env:
+          IITIAN_COOKIE: ${{ secrets.IITIAN_COOKIE }}
+          COURSE: ${{ inputs.course }}
+        shell: bash
+        run: |
+          if [ "$COURSE" = "all" ]; then
+            python tools/import_iitian.py --all
+          else
+            python tools/import_iitian.py --course "$COURSE"
+          fi
+
+      - name: Validate generated banks
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          for name in ("race", "practice"):
+              p = Path("questionbanks") / f"{name}.json"
+              data = json.loads(p.read_text(encoding="utf-8"))
+              qs = data.get("questions", data)
+              assert isinstance(qs, list) and qs, f"{name} bank is empty"
+              ids = [q.get("id") for q in qs]
+              assert all(ids), f"{name} contains question without id"
+              assert len(ids) == len(set(ids)), f"{name} contains duplicate ids"
+              print(name, len(qs), "questions", sum(q.get("source") == "IITian Academy" for q in qs), "from IITian")
+          PY
+
+      - name: Commit updated question banks
+        run: |
+          if git diff --quiet -- questionbanks/race.json questionbanks/practice.json; then
+            echo "No bank changes to commit."
+            exit 0
+          fi
+          git config user.name "IB Race question-bank importer"
+          git config user.email "actions@users.noreply.github.com"
+          git add questionbanks/race.json questionbanks/practice.json
+          git commit -m "Update authorized IITian question bank"
+          git push
