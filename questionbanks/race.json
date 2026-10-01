@@ -2,7 +2,9 @@
   "metadata": {
     "name": "IB Race Race Bank v5.2",
     "version": 2,
-    "note": "Expanded original starter bank with explicit SL/HL, subtopics, grading metadata and additional original HL-only coverage. Authorized IITian content can be merged with tools/import_iitian.py."
+    "note": "Expanded original starter bank with explicit SL/HL, subtopics, grading metadata and additional original HL-only coverage. Authorized IITian content can be merged with tools/import_iitian.py.",
+    "authorizedImport": "IITian Academy",
+    "iitianImportedQuestions": 0
   },
   "questions": [
     {
