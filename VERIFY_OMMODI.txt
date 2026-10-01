@@ -1,0 +1,16 @@
+IB RACE v5.1 — OMMODI BUILD
+
+The Ommodi URLs are embedded directly in app.js and also mirrored in questionbank-config.js.
+
+Race bank:
+https://ommodi.site/questionbanks/race.json
+
+Practice bank:
+https://ommodi.site/questionbanks/practice.json
+
+Local fallbacks included in this ZIP:
+./questionbanks/race.json
+./questionbanks/practice.json
+
+IMPORTANT:
+The two remote Ommodi paths must actually exist and serve raw JSON. Until then, the app falls back to the local JSON files included here.

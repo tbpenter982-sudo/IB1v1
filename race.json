@@ -1,0 +1,2059 @@
+{
+  "metadata": {
+    "name": "IB Race Race Starter Bank",
+    "version": 1,
+    "note": "Original starter/demo questions. Replace with your own reviewed bank for production."
+  },
+  "questions": [
+    {
+      "id": "race-mathAA-0001",
+      "subject": "mathAA",
+      "level": "Both",
+      "topic": "Algebra",
+      "difficulty": 2,
+      "prompt": "Evaluate f(x) = 3x² +2x +4 at x = 1.",
+      "answer": 9,
+      "expression": "Give an exact numerical answer.",
+      "hint": "Substitute the given x-value into the polynomial."
+    },
+    {
+      "id": "race-mathAA-0002",
+      "subject": "mathAA",
+      "level": "Both",
+      "topic": "Algebra",
+      "difficulty": 4,
+      "prompt": "The equation 7x + 7 = 42. Find x.",
+      "answer": 5,
+      "hint": "Rearrange ax+b=c: x=(c-b)/a.",
+      "explanation": "Isolate x by subtracting the constant term, then divide by the coefficient."
+    },
+    {
+      "id": "race-mathAA-0003",
+      "subject": "mathAA",
+      "level": "Both",
+      "topic": "Functions",
+      "difficulty": 2,
+      "prompt": "For f(x) = 5(x -4), find f(5).",
+      "answer": 5,
+      "hint": "Substitute the input into the function."
+    },
+    {
+      "id": "race-mathAA-0004",
+      "subject": "mathAA",
+      "level": "Both",
+      "topic": "Calculus",
+      "difficulty": 3,
+      "prompt": "Given f(x) = 3x^3, find f′(1).",
+      "answer": 9,
+      "hint": "d/dx(axⁿ) = anxⁿ⁻¹."
+    },
+    {
+      "id": "race-mathAA-0005",
+      "subject": "mathAA",
+      "level": "Both",
+      "topic": "Calculus",
+      "difficulty": 5,
+      "prompt": "Evaluate ∫₀^3 6x² dx.",
+      "answer": 54.0,
+      "tolerance": 0.001,
+      "hint": "∫x²dx = x³/3, then apply the limits."
+    },
+    {
+      "id": "race-mathAA-0006",
+      "subject": "mathAA",
+      "level": "Both",
+      "topic": "Vectors",
+      "difficulty": 3,
+      "prompt": "Find the scalar product of a = (-5, -3, 2) and b = (1, -2, 0).",
+      "answer": 1,
+      "hint": "a·b = a₁b₁ + a₂b₂ + a₃b₃."
+    },
+    {
+      "id": "race-mathAA-0007",
+      "subject": "mathAA",
+      "level": "Both",
+      "topic": "Trigonometry",
+      "difficulty": 4,
+      "prompt": "Two sides of a triangle are 6 and 7 with included angle 60°. Find the third side to 3 d.p.",
+      "answer": 6.557,
+      "tolerance": 0.002,
+      "hint": "Use the cosine rule: c²=a²+b²−2ab cos C."
+    },
+    {
+      "id": "race-mathAA-0008",
+      "subject": "mathAA",
+      "level": "Both",
+      "topic": "Probability & Statistics",
+      "difficulty": 5,
+      "prompt": "X ~ B(12, 0.4). Find P(X = 4) to 4 d.p.",
+      "answer": 0.2128,
+      "tolerance": 0.00015,
+      "hint": "P(X=k)=C(n,k)pᵏ(1−p)ⁿ⁻ᵏ."
+    },
+    {
+      "id": "race-mathAA-0009",
+      "subject": "mathAA",
+      "level": "Both",
+      "topic": "Functions",
+      "difficulty": 4,
+      "prompt": "Which transformation maps y=f(x) to y=f(x−3)+2?",
+      "answer": "B",
+      "options": [
+        "3 left, 2 up",
+        "3 right, 2 up",
+        "3 right, 2 down",
+        "3 left, 2 down"
+      ],
+      "hint": "Horizontal changes inside the function act in the opposite direction."
+    },
+    {
+      "id": "race-mathAA-0010",
+      "subject": "mathAA",
+      "level": "Both",
+      "topic": "Trigonometry",
+      "difficulty": 2,
+      "prompt": "What is sin(30°)?",
+      "answer": 0.5,
+      "tolerance": 1e-05,
+      "hint": "Use the exact special-angle values."
+    },
+    {
+      "id": "race-mathAA-0011",
+      "subject": "mathAA",
+      "level": "Both",
+      "topic": "Probability & Statistics",
+      "difficulty": 3,
+      "prompt": "A fair die is rolled twice. What is the probability that both results are even?",
+      "answer": 0.25,
+      "tolerance": 1e-05,
+      "hint": "P(even)=3/6 for one roll; independent probabilities multiply."
+    },
+    {
+      "id": "race-mathAA-0012",
+      "subject": "mathAA",
+      "level": "Both",
+      "topic": "Algebra",
+      "difficulty": 5,
+      "prompt": "If log₂(x)=7, find x.",
+      "answer": 128,
+      "hint": "Rewrite the logarithmic equation in exponential form."
+    },
+    {
+      "id": "race-mathAI-0013",
+      "subject": "mathAI",
+      "level": "Both",
+      "topic": "Financial Mathematics",
+      "difficulty": 3,
+      "prompt": "€2000 is invested at 2% compound interest annually for 3 years. Find the final value to the nearest euro.",
+      "answer": 2122,
+      "tolerance": 0.51,
+      "hint": "A=P(1+r)ⁿ."
+    },
+    {
+      "id": "race-mathAI-0014",
+      "subject": "mathAI",
+      "level": "Both",
+      "topic": "Financial Mathematics",
+      "difficulty": 4,
+      "prompt": "A car worth €41000 depreciates by 10% per year for 4 years. Find its value to the nearest euro.",
+      "answer": 26900,
+      "tolerance": 0.51,
+      "hint": "Repeated percentage decrease: V=P(1−r)ⁿ."
+    },
+    {
+      "id": "race-mathAI-0015",
+      "subject": "mathAI",
+      "level": "Both",
+      "topic": "Statistics & Probability",
+      "difficulty": 2,
+      "prompt": "Find the mean of [17, 16, 7, 13, 14].",
+      "answer": 13.4,
+      "tolerance": 0.001,
+      "hint": "Mean = sum of values ÷ number of values."
+    },
+    {
+      "id": "race-mathAI-0016",
+      "subject": "mathAI",
+      "level": "Both",
+      "topic": "Functions",
+      "difficulty": 2,
+      "prompt": "For y = 6x +4, find y when x = 6.",
+      "answer": 40,
+      "hint": "Substitute x into the linear model."
+    },
+    {
+      "id": "race-mathAI-0017",
+      "subject": "mathAI",
+      "level": "Both",
+      "topic": "Geometry & Trigonometry",
+      "difficulty": 4,
+      "prompt": "From a point 4 m from a vertical wall, the angle of elevation to the top is 50°. Find the wall height to 3 d.p.",
+      "answer": 4.767,
+      "tolerance": 0.002,
+      "hint": "tan θ = opposite/adjacent."
+    },
+    {
+      "id": "race-mathAI-0018",
+      "subject": "mathAI",
+      "level": "Both",
+      "topic": "Number & Algebra",
+      "difficulty": 3,
+      "prompt": "Write 0.000472 in scientific notation.",
+      "answer": "4.72e-4",
+      "aliases": [
+        "4.72×10^-4",
+        "4.72 x 10^-4",
+        "4.72*10^-4"
+      ],
+      "hint": "Move the decimal point until one non-zero digit remains before it."
+    },
+    {
+      "id": "race-mathAI-0019",
+      "subject": "mathAI",
+      "level": "Both",
+      "topic": "Calculus",
+      "difficulty": 5,
+      "prompt": "The rate of change is f′(x) = 6x + 3. Find f′(4).",
+      "answer": 27,
+      "hint": "Evaluate the derivative function at the given x-value."
+    },
+    {
+      "id": "race-mathAI-0020",
+      "subject": "mathAI",
+      "level": "Both",
+      "topic": "Statistics & Probability",
+      "difficulty": 4,
+      "prompt": "Which measure is most resistant to a single extreme outlier?",
+      "answer": "C",
+      "options": [
+        "Mean",
+        "Standard deviation",
+        "Median",
+        "Range"
+      ],
+      "hint": "Think about which statistic depends mainly on the middle position rather than magnitude."
+    },
+    {
+      "id": "race-mathAI-0021",
+      "subject": "mathAI",
+      "level": "Both",
+      "topic": "Geometry & Trigonometry",
+      "difficulty": 3,
+      "prompt": "A map scale is 1:50 000. A distance of 6 cm on the map represents how many kilometres in reality?",
+      "answer": 3,
+      "tolerance": 1e-05,
+      "hint": "6×50,000 cm = 300,000 cm = 3 km."
+    },
+    {
+      "id": "race-mathAI-0022",
+      "subject": "mathAI",
+      "level": "Both",
+      "topic": "Number & Algebra",
+      "difficulty": 5,
+      "prompt": "Solve 3^(x+1)=81.",
+      "answer": 3,
+      "hint": "Write 81 as a power of 3."
+    },
+    {
+      "id": "race-mathAI-0023",
+      "subject": "mathAI",
+      "level": "Both",
+      "topic": "Functions",
+      "difficulty": 4,
+      "prompt": "For the model y=120(0.85)^t, what percentage decrease occurs each time t increases by 1?",
+      "answer": 15,
+      "tolerance": 1e-05,
+      "hint": "A multiplier of 0.85 leaves 85%, so the decrease is 15%."
+    },
+    {
+      "id": "race-mathAI-0024",
+      "subject": "mathAI",
+      "level": "Both",
+      "topic": "Calculus",
+      "difficulty": 2,
+      "prompt": "If f(x)=5x², find f′(2).",
+      "answer": 20,
+      "hint": "Differentiate first, then substitute x=2."
+    },
+    {
+      "id": "race-physics-0025",
+      "subject": "physics",
+      "level": "Both",
+      "topic": "Mechanics",
+      "difficulty": 2,
+      "prompt": "A 12 kg object moves at 18 m s⁻¹. Find its kinetic energy in J.",
+      "answer": 1944.0,
+      "hint": "Eₖ = ½mv²."
+    },
+    {
+      "id": "race-physics-0026",
+      "subject": "physics",
+      "level": "Both",
+      "topic": "Mechanics",
+      "difficulty": 4,
+      "prompt": "An object has initial speed 1 m s⁻¹ and constant acceleration 2 m s⁻² for 5 s. Find its final speed.",
+      "answer": 11,
+      "hint": "v=u+at."
+    },
+    {
+      "id": "race-physics-0027",
+      "subject": "physics",
+      "level": "Both",
+      "topic": "Waves",
+      "difficulty": 2,
+      "prompt": "A wave has frequency 140 Hz and wavelength 2 m. Find its speed in m s⁻¹.",
+      "answer": 280,
+      "hint": "v=fλ."
+    },
+    {
+      "id": "race-physics-0028",
+      "subject": "physics",
+      "level": "Both",
+      "topic": "Electricity",
+      "difficulty": 3,
+      "prompt": "A component has potential difference 19 V and current 1 A. Find its resistance in Ω.",
+      "answer": 19.0,
+      "tolerance": 0.002,
+      "hint": "R=V/I."
+    },
+    {
+      "id": "race-physics-0029",
+      "subject": "physics",
+      "level": "Both",
+      "topic": "Fields",
+      "difficulty": 4,
+      "prompt": "A charge of 6e-06 C is in a uniform electric field of 2e+04 N C⁻¹. Find the electric force in N.",
+      "answer": 0.12,
+      "tolerance": 1e-05,
+      "hint": "F=qE."
+    },
+    {
+      "id": "race-physics-0030",
+      "subject": "physics",
+      "level": "Both",
+      "topic": "Thermal",
+      "difficulty": 3,
+      "prompt": "0.8 kg of water is heated by 19 K. Take c=4200 J kg⁻¹ K⁻¹. Find the energy transferred.",
+      "answer": 63840,
+      "tolerance": 0.5,
+      "hint": "Q=mcΔT."
+    },
+    {
+      "id": "race-physics-0031",
+      "subject": "physics",
+      "level": "Both",
+      "topic": "Nuclear",
+      "difficulty": 3,
+      "prompt": "A sample has activity 4 kBq. What is its activity after 3 half-lives?",
+      "answer": 0.5,
+      "tolerance": 0.0001,
+      "hint": "A=A₀(1/2)ⁿ."
+    },
+    {
+      "id": "race-physics-0032",
+      "subject": "physics",
+      "level": "Both",
+      "topic": "Electricity",
+      "difficulty": 4,
+      "prompt": "A device transfers 76 W for 115 s. How much energy is transferred in J?",
+      "answer": 8740,
+      "hint": "E=Pt."
+    },
+    {
+      "id": "race-physics-0033",
+      "subject": "physics",
+      "level": "Both",
+      "topic": "Waves",
+      "difficulty": 5,
+      "prompt": "A photon has wavelength 650 nm. Using h=6.63×10⁻³⁴ J s and c=3.00×10⁸ m s⁻¹, find its energy in J to 3 s.f.",
+      "answer": 3.06e-19,
+      "tolerance": 6.119999999999999e-22,
+      "hint": "E=hc/λ. Convert nm to m."
+    },
+    {
+      "id": "race-physics-0034",
+      "subject": "physics",
+      "level": "Both",
+      "topic": "Mechanics",
+      "difficulty": 5,
+      "prompt": "A net force of 18 N acts on a 3 kg object initially at rest for 4 s. Find the final momentum in kg m s⁻¹.",
+      "answer": 72,
+      "hint": "Impulse FΔt equals change in momentum."
+    },
+    {
+      "id": "race-physics-0035",
+      "subject": "physics",
+      "level": "Both",
+      "topic": "Nuclear",
+      "difficulty": 4,
+      "prompt": "Which radiation has the greatest ionising ability in matter?",
+      "answer": "A",
+      "options": [
+        "Alpha",
+        "Beta",
+        "Gamma",
+        "X-ray"
+      ],
+      "hint": "Consider charge, mass and how strongly each interacts with matter."
+    },
+    {
+      "id": "race-physics-0036",
+      "subject": "physics",
+      "level": "Both",
+      "topic": "Fields",
+      "difficulty": 2,
+      "prompt": "Which quantity is measured in N C⁻¹?",
+      "answer": "B",
+      "options": [
+        "Electric potential",
+        "Electric field strength",
+        "Charge",
+        "Resistance"
+      ],
+      "hint": "Force per unit charge defines this quantity."
+    },
+    {
+      "id": "race-chemistry-0037",
+      "subject": "chemistry",
+      "level": "Both",
+      "topic": "Stoichiometry",
+      "difficulty": 2,
+      "prompt": "How many grams are in 1.2 mol of a substance with molar mass 58.5 g mol⁻¹?",
+      "answer": 70.2,
+      "tolerance": 0.002,
+      "hint": "m=nM."
+    },
+    {
+      "id": "race-chemistry-0038",
+      "subject": "chemistry",
+      "level": "Both",
+      "topic": "Stoichiometry",
+      "difficulty": 3,
+      "prompt": "0.2 mol of solute is dissolved to make 2 dm³ of solution. Find concentration in mol dm⁻³.",
+      "answer": 0.1,
+      "tolerance": 0.002,
+      "hint": "c=n/V."
+    },
+    {
+      "id": "race-chemistry-0039",
+      "subject": "chemistry",
+      "level": "Both",
+      "topic": "Acids & Bases",
+      "difficulty": 2,
+      "prompt": "A solution has pH 4. Find [H⁺] in mol dm⁻³. Use scientific notation.",
+      "answer": 0.0001,
+      "tolerance": 1.0000000000000001e-07,
+      "hint": "[H⁺]=10⁻ᵖᴴ."
+    },
+    {
+      "id": "race-chemistry-0040",
+      "subject": "chemistry",
+      "level": "Both",
+      "topic": "Bonding",
+      "difficulty": 3,
+      "prompt": "Which species has a tetrahedral electron-domain geometry around the central atom?",
+      "answer": "B",
+      "options": [
+        "CO₂",
+        "CH₄",
+        "BF₃",
+        "BeCl₂"
+      ],
+      "hint": "Four electron domains around carbon give a tetrahedral arrangement."
+    },
+    {
+      "id": "race-chemistry-0041",
+      "subject": "chemistry",
+      "level": "Both",
+      "topic": "Atomic Structure",
+      "difficulty": 4,
+      "prompt": "How many neutrons are in ³⁷Cl⁻?",
+      "answer": "C",
+      "options": [
+        "17",
+        "18",
+        "20",
+        "37"
+      ],
+      "hint": "Neutrons = mass number − atomic number. Charge does not change the nucleus."
+    },
+    {
+      "id": "race-chemistry-0042",
+      "subject": "chemistry",
+      "level": "Both",
+      "topic": "Energetics",
+      "difficulty": 3,
+      "prompt": "A reaction has ΔH = -92 kJ mol⁻¹. What is the enthalpy change for 0.5 mol?",
+      "answer": -46.0,
+      "tolerance": 0.01,
+      "hint": "Multiply molar enthalpy change by amount in moles."
+    },
+    {
+      "id": "race-chemistry-0043",
+      "subject": "chemistry",
+      "level": "Both",
+      "topic": "Equilibrium",
+      "difficulty": 4,
+      "prompt": "For A ⇌ B, equilibrium concentrations are [A]=0.2 mol dm⁻³ and [B]=0.1 mol dm⁻³. Find Kc.",
+      "answer": 0.5,
+      "tolerance": 0.0001,
+      "hint": "For A ⇌ B, Kc=[B]/[A]."
+    },
+    {
+      "id": "race-chemistry-0044",
+      "subject": "chemistry",
+      "level": "Both",
+      "topic": "Kinetics",
+      "difficulty": 4,
+      "prompt": "A fixed amount of product forms in 26 s under condition 1 and 5 s under condition 2. By what factor is the average rate larger under condition 2?",
+      "answer": 5.2,
+      "tolerance": 0.002,
+      "hint": "For the same amount, rate is inversely proportional to time."
+    },
+    {
+      "id": "race-chemistry-0045",
+      "subject": "chemistry",
+      "level": "Both",
+      "topic": "Redox",
+      "difficulty": 3,
+      "prompt": "What is the oxidation state of sulfur in SO₄²⁻?",
+      "answer": "+6",
+      "aliases": [
+        "6",
+        "+ 6"
+      ],
+      "hint": "Let sulfur be x: x + 4(−2) = −2."
+    },
+    {
+      "id": "race-chemistry-0046",
+      "subject": "chemistry",
+      "level": "Both",
+      "topic": "Organic",
+      "difficulty": 3,
+      "prompt": "What is the product of complete oxidation of a primary alcohol?",
+      "answer": "carboxylic acid",
+      "aliases": [
+        "a carboxylic acid"
+      ],
+      "hint": "Primary alcohol → aldehyde → carboxylic acid under complete oxidation."
+    },
+    {
+      "id": "race-chemistry-0047",
+      "subject": "chemistry",
+      "level": "Both",
+      "topic": "Acids & Bases",
+      "difficulty": 5,
+      "prompt": "A strong acid has [H⁺] = 2.5×10⁻⁴ mol dm⁻³. Find pH to 3 d.p.",
+      "answer": 3.602,
+      "tolerance": 0.002,
+      "hint": "pH=−log₁₀[H⁺]."
+    },
+    {
+      "id": "race-chemistry-0048",
+      "subject": "chemistry",
+      "level": "Both",
+      "topic": "Bonding",
+      "difficulty": 5,
+      "prompt": "Which intermolecular force is present between all molecular substances?",
+      "answer": "D",
+      "options": [
+        "Ionic bonding",
+        "Hydrogen bonding",
+        "Permanent dipole forces",
+        "London dispersion forces"
+      ],
+      "hint": "Instantaneous dipoles can arise in every electron cloud."
+    },
+    {
+      "id": "race-biology-0049",
+      "subject": "biology",
+      "level": "Both",
+      "topic": "Cell Biology",
+      "difficulty": 2,
+      "prompt": "A cell image measures 60 mm while the actual cell length is 4 μm. Find the magnification.",
+      "answer": 15000.0,
+      "tolerance": 0.01,
+      "hint": "Convert both lengths to the same unit before using magnification=image size/actual size."
+    },
+    {
+      "id": "race-biology-0050",
+      "subject": "biology",
+      "level": "Both",
+      "topic": "Molecular Biology",
+      "difficulty": 3,
+      "prompt": "Which bond joins complementary bases across the two DNA strands?",
+      "answer": "C",
+      "options": [
+        "Peptide bond",
+        "Phosphodiester bond",
+        "Hydrogen bond",
+        "Glycosidic bond"
+      ],
+      "hint": "Base pairs are held together by relatively weak bonds that allow strand separation."
+    },
+    {
+      "id": "race-biology-0051",
+      "subject": "biology",
+      "level": "Both",
+      "topic": "Genetics",
+      "difficulty": 3,
+      "prompt": "In a monohybrid cross Aa × Aa, what is the probability of genotype aa?",
+      "answer": 0.25,
+      "tolerance": 1e-05,
+      "hint": "Use a 2×2 Punnett square."
+    },
+    {
+      "id": "race-biology-0052",
+      "subject": "biology",
+      "level": "Both",
+      "topic": "Metabolism",
+      "difficulty": 4,
+      "prompt": "Where does the light-independent stage of photosynthesis occur in a chloroplast?",
+      "answer": "B",
+      "options": [
+        "Thylakoid lumen",
+        "Stroma",
+        "Cristae",
+        "Cytosol"
+      ],
+      "hint": "The Calvin cycle enzymes are located in the fluid surrounding the thylakoids."
+    },
+    {
+      "id": "race-biology-0053",
+      "subject": "biology",
+      "level": "Both",
+      "topic": "Ecology",
+      "difficulty": 3,
+      "prompt": "Producers contain 18 000 kJ of energy. If 12% is transferred to primary consumers, how much energy reaches them?",
+      "answer": 2160,
+      "hint": "Multiply by the transfer efficiency as a decimal."
+    },
+    {
+      "id": "race-biology-0054",
+      "subject": "biology",
+      "level": "Both",
+      "topic": "Evolution",
+      "difficulty": 4,
+      "prompt": "Which process directly changes allele frequencies because individuals move between populations?",
+      "answer": "C",
+      "options": [
+        "Mutation",
+        "Genetic drift",
+        "Gene flow",
+        "Stabilizing selection"
+      ],
+      "hint": "Movement of alleles between populations accompanies migration."
+    },
+    {
+      "id": "race-biology-0055",
+      "subject": "biology",
+      "level": "Both",
+      "topic": "Human Physiology",
+      "difficulty": 2,
+      "prompt": "Which chamber pumps blood into the systemic circulation?",
+      "answer": "D",
+      "options": [
+        "Right atrium",
+        "Right ventricle",
+        "Left atrium",
+        "Left ventricle"
+      ],
+      "hint": "Systemic circulation begins at the chamber connected to the aorta."
+    },
+    {
+      "id": "race-biology-0056",
+      "subject": "biology",
+      "level": "Both",
+      "topic": "Genetics",
+      "difficulty": 5,
+      "prompt": "In a Hardy–Weinberg population, allele frequencies are p=0.7 and q=0.3. Find the expected heterozygote frequency.",
+      "answer": 0.42,
+      "tolerance": 0.001,
+      "hint": "Heterozygote frequency = 2pq."
+    },
+    {
+      "id": "race-biology-0057",
+      "subject": "biology",
+      "level": "Both",
+      "topic": "Cell Biology",
+      "difficulty": 4,
+      "prompt": "A cube-shaped cell doubles its side length. By what factor does its surface-area-to-volume ratio change?",
+      "answer": "halves",
+      "aliases": [
+        "1/2",
+        "0.5",
+        "decreases by half"
+      ],
+      "hint": "For a cube, SA:V is proportional to 1/side length."
+    },
+    {
+      "id": "race-biology-0058",
+      "subject": "biology",
+      "level": "Both",
+      "topic": "Molecular Biology",
+      "difficulty": 5,
+      "prompt": "Which enzyme synthesizes RNA from a DNA template during transcription?",
+      "answer": "RNA polymerase",
+      "aliases": [
+        "rna polymerase"
+      ],
+      "hint": "The enzyme moves along DNA while joining RNA nucleotides."
+    },
+    {
+      "id": "race-biology-0059",
+      "subject": "biology",
+      "level": "Both",
+      "topic": "Metabolism",
+      "difficulty": 3,
+      "prompt": "Which molecule is the immediate energy currency used by cells?",
+      "answer": "ATP",
+      "aliases": [
+        "adenosine triphosphate"
+      ],
+      "hint": "It transfers energy through phosphorylation reactions."
+    },
+    {
+      "id": "race-biology-0060",
+      "subject": "biology",
+      "level": "Both",
+      "topic": "Ecology",
+      "difficulty": 5,
+      "prompt": "A quadrat survey finds 42 individuals in 7 quadrats of 0.5 m² each. Estimate density in individuals per m².",
+      "answer": 12,
+      "tolerance": 0.001,
+      "hint": "Density = total individuals / total sampled area."
+    },
+    {
+      "id": "race-economics-0061",
+      "subject": "economics",
+      "level": "Both",
+      "topic": "Microeconomics",
+      "difficulty": 4,
+      "prompt": "Price falls from 15 to 13 while quantity demanded rises from 87 to 108. Using the midpoint method, calculate PED to 2 d.p.",
+      "answer": 1.51,
+      "tolerance": 0.015,
+      "hint": "PED = %ΔQd / %ΔP using midpoint percentage changes."
+    },
+    {
+      "id": "race-economics-0062",
+      "subject": "economics",
+      "level": "Both",
+      "topic": "Macroeconomics",
+      "difficulty": 3,
+      "prompt": "If the marginal propensity to consume is 0.7, calculate the simple Keynesian multiplier.",
+      "answer": 3.33,
+      "tolerance": 0.01,
+      "hint": "Multiplier = 1/(1−MPC)."
+    },
+    {
+      "id": "race-economics-0063",
+      "subject": "economics",
+      "level": "Both",
+      "topic": "Macroeconomics",
+      "difficulty": 4,
+      "prompt": "Nominal GDP is 729 billion and the GDP deflator is 125. Find real GDP in billions to 1 d.p.",
+      "answer": 583.2,
+      "tolerance": 0.06,
+      "hint": "Real GDP = nominal GDP ÷ (deflator/100)."
+    },
+    {
+      "id": "race-economics-0064",
+      "subject": "economics",
+      "level": "Both",
+      "topic": "Global Economy",
+      "difficulty": 2,
+      "prompt": "Exports are $449 bn and imports are $416 bn. Find net exports in $bn.",
+      "answer": 33,
+      "hint": "Net exports = exports − imports."
+    },
+    {
+      "id": "race-economics-0065",
+      "subject": "economics",
+      "level": "Both",
+      "topic": "Development",
+      "difficulty": 3,
+      "prompt": "Which measure combines health, education and income dimensions?",
+      "answer": "B",
+      "options": [
+        "Gini coefficient",
+        "Human Development Index",
+        "Consumer Price Index",
+        "Current account balance"
+      ],
+      "hint": "This composite index is published as a broad development indicator."
+    },
+    {
+      "id": "race-economics-0066",
+      "subject": "economics",
+      "level": "Both",
+      "topic": "Microeconomics",
+      "difficulty": 2,
+      "prompt": "If PED = 0.4, demand is best described as:",
+      "answer": "A",
+      "options": [
+        "Price inelastic",
+        "Unit elastic",
+        "Price elastic",
+        "Perfectly elastic"
+      ],
+      "hint": "Compare the absolute PED value with 1."
+    },
+    {
+      "id": "race-economics-0067",
+      "subject": "economics",
+      "level": "Both",
+      "topic": "Macroeconomics",
+      "difficulty": 3,
+      "prompt": "A price index rises from 147 to 167. Calculate the percentage inflation over the period to 2 d.p.",
+      "answer": 13.61,
+      "tolerance": 0.015,
+      "hint": "Percentage change = (new−old)/old ×100."
+    },
+    {
+      "id": "race-economics-0068",
+      "subject": "economics",
+      "level": "Both",
+      "topic": "Global Economy",
+      "difficulty": 4,
+      "prompt": "A currency appreciation, ceteris paribus, tends to make the country’s exports:",
+      "answer": "C",
+      "options": [
+        "Cheaper to foreigners",
+        "Unaffected",
+        "More expensive to foreigners",
+        "Always larger in quantity"
+      ],
+      "hint": "Foreign buyers must give up more of their currency for each unit of the appreciated currency."
+    },
+    {
+      "id": "race-economics-0069",
+      "subject": "economics",
+      "level": "Both",
+      "topic": "Microeconomics",
+      "difficulty": 5,
+      "prompt": "A per-unit tax of $4 raises the consumer price from $18 to $20. What tax burden per unit falls on producers?",
+      "answer": 2,
+      "tolerance": 0.001,
+      "hint": "Producer burden = original producer price − new net price received by producers."
+    },
+    {
+      "id": "race-economics-0070",
+      "subject": "economics",
+      "level": "Both",
+      "topic": "Development",
+      "difficulty": 4,
+      "prompt": "A Gini coefficient closer to 1 indicates:",
+      "answer": "D",
+      "options": [
+        "Lower inflation",
+        "Higher life expectancy",
+        "More equal income distribution",
+        "Greater income inequality"
+      ],
+      "hint": "The coefficient ranges from perfect equality toward maximum inequality."
+    },
+    {
+      "id": "race-economics-0071",
+      "subject": "economics",
+      "level": "Both",
+      "topic": "Macroeconomics",
+      "difficulty": 5,
+      "prompt": "If MPC = 0.75 and autonomous spending rises by $20 bn, what is the simple-model change in equilibrium national income?",
+      "answer": 80,
+      "tolerance": 0.001,
+      "hint": "Multiplier=1/(1−MPC)=4, then multiply by the spending change."
+    },
+    {
+      "id": "race-economics-0072",
+      "subject": "economics",
+      "level": "Both",
+      "topic": "Global Economy",
+      "difficulty": 3,
+      "prompt": "If an exchange rate moves from 1.20 to 1.32 units of foreign currency per domestic currency, by what percentage has the domestic currency appreciated?",
+      "answer": 10,
+      "tolerance": 0.001,
+      "hint": "Percentage change=(1.32−1.20)/1.20×100."
+    },
+    {
+      "id": "race-ess-0073",
+      "subject": "ess",
+      "level": "Both",
+      "topic": "Ecosystems",
+      "difficulty": 2,
+      "prompt": "An ecosystem has GPP=996 kJ m⁻² yr⁻¹ and respiratory losses=544 kJ m⁻² yr⁻¹. Find NPP.",
+      "answer": 452,
+      "hint": "NPP = GPP − respiration."
+    },
+    {
+      "id": "race-ess-0074",
+      "subject": "ess",
+      "level": "Both",
+      "topic": "Energy & Resources",
+      "difficulty": 3,
+      "prompt": "A system receives 1197 kJ and delivers 470 kJ of useful energy. Calculate efficiency to 1 d.p.",
+      "answer": 39.3,
+      "tolerance": 0.06,
+      "hint": "Efficiency = useful output/input ×100%."
+    },
+    {
+      "id": "race-ess-0075",
+      "subject": "ess",
+      "level": "Both",
+      "topic": "Sustainability",
+      "difficulty": 3,
+      "prompt": "A population of 39141 grows by 1.5% in one year. Estimate the numerical increase.",
+      "answer": 587,
+      "tolerance": 0.51,
+      "hint": "Increase = population × growth rate as a decimal."
+    },
+    {
+      "id": "race-ess-0076",
+      "subject": "ess",
+      "level": "Both",
+      "topic": "Climate Change",
+      "difficulty": 2,
+      "prompt": "Which gas is the largest direct anthropogenic contributor among these to long-lived greenhouse forcing?",
+      "answer": "A",
+      "options": [
+        "Carbon dioxide",
+        "Oxygen",
+        "Nitrogen",
+        "Argon"
+      ],
+      "hint": "Consider major long-lived greenhouse gases released by fossil-fuel combustion."
+    },
+    {
+      "id": "race-ess-0077",
+      "subject": "ess",
+      "level": "Both",
+      "topic": "Biodiversity",
+      "difficulty": 4,
+      "prompt": "Which index increases when both species richness and evenness increase?",
+      "answer": "B",
+      "options": [
+        "Biochemical oxygen demand",
+        "Diversity index",
+        "Ecological footprint",
+        "Carbon intensity"
+      ],
+      "hint": "The metric is designed to represent biological diversity."
+    },
+    {
+      "id": "race-ess-0078",
+      "subject": "ess",
+      "level": "Both",
+      "topic": "Pollution",
+      "difficulty": 3,
+      "prompt": "High biochemical oxygen demand in water most directly indicates:",
+      "answer": "C",
+      "options": [
+        "Low organic matter",
+        "High salinity",
+        "High biodegradable organic pollution",
+        "High dissolved oxygen"
+      ],
+      "hint": "Microorganisms consume oxygen while decomposing biodegradable material."
+    },
+    {
+      "id": "race-ess-0079",
+      "subject": "ess",
+      "level": "Both",
+      "topic": "Water & Food",
+      "difficulty": 3,
+      "prompt": "A farm uses 900 m³ of water and 630 m³ reaches crops effectively. Find irrigation efficiency as a percentage.",
+      "answer": 70,
+      "tolerance": 0.001,
+      "hint": "Efficiency=useful water/input water×100%."
+    },
+    {
+      "id": "race-ess-0080",
+      "subject": "ess",
+      "level": "Both",
+      "topic": "Energy & Resources",
+      "difficulty": 4,
+      "prompt": "Which energy source is renewable on human timescales?",
+      "answer": "D",
+      "options": [
+        "Coal",
+        "Natural gas",
+        "Uranium ore",
+        "Wind"
+      ],
+      "hint": "Choose the source replenished continuously by natural processes."
+    },
+    {
+      "id": "race-ess-0081",
+      "subject": "ess",
+      "level": "Both",
+      "topic": "Sustainability",
+      "difficulty": 5,
+      "prompt": "A region has 4900 global hectares of biocapacity. If average ecological footprint is 2 gha per person, how many people could be supported at that footprint?",
+      "answer": 2450,
+      "tolerance": 0.51,
+      "hint": "Supported population = total biocapacity ÷ footprint per person."
+    },
+    {
+      "id": "race-ess-0082",
+      "subject": "ess",
+      "level": "Both",
+      "topic": "Ecosystems",
+      "difficulty": 4,
+      "prompt": "If only 10% of trophic-level energy is transferred, how much of 25 000 kJ at producers is expected at secondary consumers?",
+      "answer": 250,
+      "tolerance": 0.001,
+      "hint": "Apply 10% transfer twice: producer → primary → secondary."
+    },
+    {
+      "id": "race-ess-0083",
+      "subject": "ess",
+      "level": "Both",
+      "topic": "Climate Change",
+      "difficulty": 5,
+      "prompt": "Which feedback is positive?",
+      "answer": "A",
+      "options": [
+        "Ice melts, lowering albedo and increasing absorption",
+        "More cloud always reflects all sunlight",
+        "Reforestation removes CO₂",
+        "Higher efficiency reduces fuel use"
+      ],
+      "hint": "A positive feedback amplifies the original change."
+    },
+    {
+      "id": "race-ess-0084",
+      "subject": "ess",
+      "level": "Both",
+      "topic": "Pollution",
+      "difficulty": 4,
+      "prompt": "A pollutant concentration is 80 mg L⁻¹ and falls by half every 5 days. What is the concentration after 15 days?",
+      "answer": 10,
+      "tolerance": 0.001,
+      "hint": "15 days is three half-lives: multiply by (1/2)³."
+    },
+    {
+      "id": "race-mathAA-0085",
+      "subject": "mathAA",
+      "level": "Both",
+      "topic": "Algebra",
+      "difficulty": 2,
+      "prompt": "Evaluate f(x) = 3x² -8x +4 at x = 4.",
+      "answer": 20,
+      "expression": "Give an exact numerical answer.",
+      "hint": "Substitute the given x-value into the polynomial."
+    },
+    {
+      "id": "race-mathAA-0086",
+      "subject": "mathAA",
+      "level": "Both",
+      "topic": "Algebra",
+      "difficulty": 4,
+      "prompt": "The equation 9x + 5 = 23. Find x.",
+      "answer": 2,
+      "hint": "Rearrange ax+b=c: x=(c-b)/a.",
+      "explanation": "Isolate x by subtracting the constant term, then divide by the coefficient."
+    },
+    {
+      "id": "race-mathAA-0087",
+      "subject": "mathAA",
+      "level": "Both",
+      "topic": "Functions",
+      "difficulty": 2,
+      "prompt": "For f(x) = 3(x -4), find f(-1).",
+      "answer": -15,
+      "hint": "Substitute the input into the function."
+    },
+    {
+      "id": "race-mathAA-0088",
+      "subject": "mathAA",
+      "level": "Both",
+      "topic": "Calculus",
+      "difficulty": 3,
+      "prompt": "Given f(x) = 3x^5, find f′(3).",
+      "answer": 1215,
+      "hint": "d/dx(axⁿ) = anxⁿ⁻¹."
+    },
+    {
+      "id": "race-mathAA-0089",
+      "subject": "mathAA",
+      "level": "Both",
+      "topic": "Calculus",
+      "difficulty": 5,
+      "prompt": "Evaluate ∫₀^3 2x² dx.",
+      "answer": 18.0,
+      "tolerance": 0.001,
+      "hint": "∫x²dx = x³/3, then apply the limits."
+    },
+    {
+      "id": "race-mathAA-0090",
+      "subject": "mathAA",
+      "level": "Both",
+      "topic": "Vectors",
+      "difficulty": 3,
+      "prompt": "Find the scalar product of a = (-2, 3, 0) and b = (0, 4, 5).",
+      "answer": 12,
+      "hint": "a·b = a₁b₁ + a₂b₂ + a₃b₃."
+    },
+    {
+      "id": "race-mathAA-0091",
+      "subject": "mathAA",
+      "level": "Both",
+      "topic": "Trigonometry",
+      "difficulty": 4,
+      "prompt": "Two sides of a triangle are 6 and 5 with included angle 60°. Find the third side to 3 d.p.",
+      "answer": 5.568,
+      "tolerance": 0.002,
+      "hint": "Use the cosine rule: c²=a²+b²−2ab cos C."
+    },
+    {
+      "id": "race-mathAA-0092",
+      "subject": "mathAA",
+      "level": "Both",
+      "topic": "Probability & Statistics",
+      "difficulty": 5,
+      "prompt": "X ~ B(7, 0.2). Find P(X = 4) to 4 d.p.",
+      "answer": 0.0287,
+      "tolerance": 0.00015,
+      "hint": "P(X=k)=C(n,k)pᵏ(1−p)ⁿ⁻ᵏ."
+    },
+    {
+      "id": "race-mathAA-0093",
+      "subject": "mathAA",
+      "level": "Both",
+      "topic": "Functions",
+      "difficulty": 4,
+      "prompt": "Which transformation maps y=f(x) to y=f(x−3)+2?",
+      "answer": "B",
+      "options": [
+        "3 left, 2 up",
+        "3 right, 2 up",
+        "3 right, 2 down",
+        "3 left, 2 down"
+      ],
+      "hint": "Horizontal changes inside the function act in the opposite direction."
+    },
+    {
+      "id": "race-mathAA-0094",
+      "subject": "mathAA",
+      "level": "Both",
+      "topic": "Trigonometry",
+      "difficulty": 2,
+      "prompt": "What is sin(30°)?",
+      "answer": 0.5,
+      "tolerance": 1e-05,
+      "hint": "Use the exact special-angle values."
+    },
+    {
+      "id": "race-mathAA-0095",
+      "subject": "mathAA",
+      "level": "Both",
+      "topic": "Probability & Statistics",
+      "difficulty": 3,
+      "prompt": "A fair die is rolled twice. What is the probability that both results are even?",
+      "answer": 0.25,
+      "tolerance": 1e-05,
+      "hint": "P(even)=3/6 for one roll; independent probabilities multiply."
+    },
+    {
+      "id": "race-mathAA-0096",
+      "subject": "mathAA",
+      "level": "Both",
+      "topic": "Algebra",
+      "difficulty": 5,
+      "prompt": "If log₂(x)=7, find x.",
+      "answer": 128,
+      "hint": "Rewrite the logarithmic equation in exponential form."
+    },
+    {
+      "id": "race-mathAI-0097",
+      "subject": "mathAI",
+      "level": "Both",
+      "topic": "Financial Mathematics",
+      "difficulty": 3,
+      "prompt": "€2500 is invested at 3% compound interest annually for 3 years. Find the final value to the nearest euro.",
+      "answer": 2732,
+      "tolerance": 0.51,
+      "hint": "A=P(1+r)ⁿ."
+    },
+    {
+      "id": "race-mathAI-0098",
+      "subject": "mathAI",
+      "level": "Both",
+      "topic": "Financial Mathematics",
+      "difficulty": 4,
+      "prompt": "A car worth €40000 depreciates by 10% per year for 3 years. Find its value to the nearest euro.",
+      "answer": 29160,
+      "tolerance": 0.51,
+      "hint": "Repeated percentage decrease: V=P(1−r)ⁿ."
+    },
+    {
+      "id": "race-mathAI-0099",
+      "subject": "mathAI",
+      "level": "Both",
+      "topic": "Statistics & Probability",
+      "difficulty": 2,
+      "prompt": "Find the mean of [19, 12, 14, 10, 3].",
+      "answer": 11.6,
+      "tolerance": 0.001,
+      "hint": "Mean = sum of values ÷ number of values."
+    },
+    {
+      "id": "race-mathAI-0100",
+      "subject": "mathAI",
+      "level": "Both",
+      "topic": "Functions",
+      "difficulty": 2,
+      "prompt": "For y = 7x +2, find y when x = -2.",
+      "answer": -12,
+      "hint": "Substitute x into the linear model."
+    },
+    {
+      "id": "race-mathAI-0101",
+      "subject": "mathAI",
+      "level": "Both",
+      "topic": "Geometry & Trigonometry",
+      "difficulty": 4,
+      "prompt": "From a point 7 m from a vertical wall, the angle of elevation to the top is 25°. Find the wall height to 3 d.p.",
+      "answer": 3.264,
+      "tolerance": 0.002,
+      "hint": "tan θ = opposite/adjacent."
+    },
+    {
+      "id": "race-mathAI-0102",
+      "subject": "mathAI",
+      "level": "Both",
+      "topic": "Number & Algebra",
+      "difficulty": 3,
+      "prompt": "Write 0.000472 in scientific notation.",
+      "answer": "4.72e-4",
+      "aliases": [
+        "4.72×10^-4",
+        "4.72 x 10^-4",
+        "4.72*10^-4"
+      ],
+      "hint": "Move the decimal point until one non-zero digit remains before it."
+    },
+    {
+      "id": "race-mathAI-0103",
+      "subject": "mathAI",
+      "level": "Both",
+      "topic": "Calculus",
+      "difficulty": 5,
+      "prompt": "The rate of change is f′(x) = 2x + 3. Find f′(4).",
+      "answer": 11,
+      "hint": "Evaluate the derivative function at the given x-value."
+    },
+    {
+      "id": "race-mathAI-0104",
+      "subject": "mathAI",
+      "level": "Both",
+      "topic": "Statistics & Probability",
+      "difficulty": 4,
+      "prompt": "Which measure is most resistant to a single extreme outlier?",
+      "answer": "C",
+      "options": [
+        "Mean",
+        "Standard deviation",
+        "Median",
+        "Range"
+      ],
+      "hint": "Think about which statistic depends mainly on the middle position rather than magnitude."
+    },
+    {
+      "id": "race-mathAI-0105",
+      "subject": "mathAI",
+      "level": "Both",
+      "topic": "Geometry & Trigonometry",
+      "difficulty": 3,
+      "prompt": "A map scale is 1:50 000. A distance of 6 cm on the map represents how many kilometres in reality?",
+      "answer": 3,
+      "tolerance": 1e-05,
+      "hint": "6×50,000 cm = 300,000 cm = 3 km."
+    },
+    {
+      "id": "race-mathAI-0106",
+      "subject": "mathAI",
+      "level": "Both",
+      "topic": "Number & Algebra",
+      "difficulty": 5,
+      "prompt": "Solve 3^(x+1)=81.",
+      "answer": 3,
+      "hint": "Write 81 as a power of 3."
+    },
+    {
+      "id": "race-mathAI-0107",
+      "subject": "mathAI",
+      "level": "Both",
+      "topic": "Functions",
+      "difficulty": 4,
+      "prompt": "For the model y=120(0.85)^t, what percentage decrease occurs each time t increases by 1?",
+      "answer": 15,
+      "tolerance": 1e-05,
+      "hint": "A multiplier of 0.85 leaves 85%, so the decrease is 15%."
+    },
+    {
+      "id": "race-mathAI-0108",
+      "subject": "mathAI",
+      "level": "Both",
+      "topic": "Calculus",
+      "difficulty": 2,
+      "prompt": "If f(x)=5x², find f′(2).",
+      "answer": 20,
+      "hint": "Differentiate first, then substitute x=2."
+    },
+    {
+      "id": "race-physics-0109",
+      "subject": "physics",
+      "level": "Both",
+      "topic": "Mechanics",
+      "difficulty": 2,
+      "prompt": "A 12 kg object moves at 9 m s⁻¹. Find its kinetic energy in J.",
+      "answer": 486.0,
+      "hint": "Eₖ = ½mv²."
+    },
+    {
+      "id": "race-physics-0110",
+      "subject": "physics",
+      "level": "Both",
+      "topic": "Mechanics",
+      "difficulty": 4,
+      "prompt": "An object has initial speed 8 m s⁻¹ and constant acceleration 3 m s⁻² for 5 s. Find its final speed.",
+      "answer": 23,
+      "hint": "v=u+at."
+    },
+    {
+      "id": "race-physics-0111",
+      "subject": "physics",
+      "level": "Both",
+      "topic": "Waves",
+      "difficulty": 2,
+      "prompt": "A wave has frequency 60 Hz and wavelength 4 m. Find its speed in m s⁻¹.",
+      "answer": 240,
+      "hint": "v=fλ."
+    },
+    {
+      "id": "race-physics-0112",
+      "subject": "physics",
+      "level": "Both",
+      "topic": "Electricity",
+      "difficulty": 3,
+      "prompt": "A component has potential difference 20 V and current 0.5 A. Find its resistance in Ω.",
+      "answer": 40.0,
+      "tolerance": 0.002,
+      "hint": "R=V/I."
+    },
+    {
+      "id": "race-physics-0113",
+      "subject": "physics",
+      "level": "Both",
+      "topic": "Fields",
+      "difficulty": 4,
+      "prompt": "A charge of 7e-06 C is in a uniform electric field of 7e+04 N C⁻¹. Find the electric force in N.",
+      "answer": 0.49,
+      "tolerance": 1e-05,
+      "hint": "F=qE."
+    },
+    {
+      "id": "race-physics-0114",
+      "subject": "physics",
+      "level": "Both",
+      "topic": "Thermal",
+      "difficulty": 3,
+      "prompt": "0.8 kg of water is heated by 14 K. Take c=4200 J kg⁻¹ K⁻¹. Find the energy transferred.",
+      "answer": 47040,
+      "tolerance": 0.5,
+      "hint": "Q=mcΔT."
+    },
+    {
+      "id": "race-physics-0115",
+      "subject": "physics",
+      "level": "Both",
+      "topic": "Nuclear",
+      "difficulty": 3,
+      "prompt": "A sample has activity 13 kBq. What is its activity after 5 half-lives?",
+      "answer": 0.4062,
+      "tolerance": 0.0001,
+      "hint": "A=A₀(1/2)ⁿ."
+    },
+    {
+      "id": "race-physics-0116",
+      "subject": "physics",
+      "level": "Both",
+      "topic": "Electricity",
+      "difficulty": 4,
+      "prompt": "A device transfers 45 W for 76 s. How much energy is transferred in J?",
+      "answer": 3420,
+      "hint": "E=Pt."
+    },
+    {
+      "id": "race-physics-0117",
+      "subject": "physics",
+      "level": "Both",
+      "topic": "Waves",
+      "difficulty": 5,
+      "prompt": "A photon has wavelength 450 nm. Using h=6.63×10⁻³⁴ J s and c=3.00×10⁸ m s⁻¹, find its energy in J to 3 s.f.",
+      "answer": 4.42e-19,
+      "tolerance": 8.839999999999999e-22,
+      "hint": "E=hc/λ. Convert nm to m."
+    },
+    {
+      "id": "race-physics-0118",
+      "subject": "physics",
+      "level": "Both",
+      "topic": "Mechanics",
+      "difficulty": 5,
+      "prompt": "A net force of 18 N acts on a 3 kg object initially at rest for 4 s. Find the final momentum in kg m s⁻¹.",
+      "answer": 72,
+      "hint": "Impulse FΔt equals change in momentum."
+    },
+    {
+      "id": "race-physics-0119",
+      "subject": "physics",
+      "level": "Both",
+      "topic": "Nuclear",
+      "difficulty": 4,
+      "prompt": "Which radiation has the greatest ionising ability in matter?",
+      "answer": "A",
+      "options": [
+        "Alpha",
+        "Beta",
+        "Gamma",
+        "X-ray"
+      ],
+      "hint": "Consider charge, mass and how strongly each interacts with matter."
+    },
+    {
+      "id": "race-physics-0120",
+      "subject": "physics",
+      "level": "Both",
+      "topic": "Fields",
+      "difficulty": 2,
+      "prompt": "Which quantity is measured in N C⁻¹?",
+      "answer": "B",
+      "options": [
+        "Electric potential",
+        "Electric field strength",
+        "Charge",
+        "Resistance"
+      ],
+      "hint": "Force per unit charge defines this quantity."
+    },
+    {
+      "id": "race-chemistry-0121",
+      "subject": "chemistry",
+      "level": "Both",
+      "topic": "Stoichiometry",
+      "difficulty": 2,
+      "prompt": "How many grams are in 0.5 mol of a substance with molar mass 18 g mol⁻¹?",
+      "answer": 9.0,
+      "tolerance": 0.002,
+      "hint": "m=nM."
+    },
+    {
+      "id": "race-chemistry-0122",
+      "subject": "chemistry",
+      "level": "Both",
+      "topic": "Stoichiometry",
+      "difficulty": 3,
+      "prompt": "0.35 mol of solute is dissolved to make 0.5 dm³ of solution. Find concentration in mol dm⁻³.",
+      "answer": 0.7,
+      "tolerance": 0.002,
+      "hint": "c=n/V."
+    },
+    {
+      "id": "race-chemistry-0123",
+      "subject": "chemistry",
+      "level": "Both",
+      "topic": "Acids & Bases",
+      "difficulty": 2,
+      "prompt": "A solution has pH 5. Find [H⁺] in mol dm⁻³. Use scientific notation.",
+      "answer": 1e-05,
+      "tolerance": 1e-08,
+      "hint": "[H⁺]=10⁻ᵖᴴ."
+    },
+    {
+      "id": "race-chemistry-0124",
+      "subject": "chemistry",
+      "level": "Both",
+      "topic": "Bonding",
+      "difficulty": 3,
+      "prompt": "Which species has a tetrahedral electron-domain geometry around the central atom?",
+      "answer": "B",
+      "options": [
+        "CO₂",
+        "CH₄",
+        "BF₃",
+        "BeCl₂"
+      ],
+      "hint": "Four electron domains around carbon give a tetrahedral arrangement."
+    },
+    {
+      "id": "race-chemistry-0125",
+      "subject": "chemistry",
+      "level": "Both",
+      "topic": "Atomic Structure",
+      "difficulty": 4,
+      "prompt": "How many neutrons are in ³⁷Cl⁻?",
+      "answer": "C",
+      "options": [
+        "17",
+        "18",
+        "20",
+        "37"
+      ],
+      "hint": "Neutrons = mass number − atomic number. Charge does not change the nucleus."
+    },
+    {
+      "id": "race-chemistry-0126",
+      "subject": "chemistry",
+      "level": "Both",
+      "topic": "Energetics",
+      "difficulty": 3,
+      "prompt": "A reaction has ΔH = -286 kJ mol⁻¹. What is the enthalpy change for 2 mol?",
+      "answer": -572,
+      "tolerance": 0.01,
+      "hint": "Multiply molar enthalpy change by amount in moles."
+    },
+    {
+      "id": "race-chemistry-0127",
+      "subject": "chemistry",
+      "level": "Both",
+      "topic": "Equilibrium",
+      "difficulty": 4,
+      "prompt": "For A ⇌ B, equilibrium concentrations are [A]=0.5 mol dm⁻³ and [B]=0.2 mol dm⁻³. Find Kc.",
+      "answer": 0.4,
+      "tolerance": 0.0001,
+      "hint": "For A ⇌ B, Kc=[B]/[A]."
+    },
+    {
+      "id": "race-chemistry-0128",
+      "subject": "chemistry",
+      "level": "Both",
+      "topic": "Kinetics",
+      "difficulty": 4,
+      "prompt": "A fixed amount of product forms in 24 s under condition 1 and 13 s under condition 2. By what factor is the average rate larger under condition 2?",
+      "answer": 1.846,
+      "tolerance": 0.002,
+      "hint": "For the same amount, rate is inversely proportional to time."
+    },
+    {
+      "id": "race-chemistry-0129",
+      "subject": "chemistry",
+      "level": "Both",
+      "topic": "Redox",
+      "difficulty": 3,
+      "prompt": "What is the oxidation state of sulfur in SO₄²⁻?",
+      "answer": "+6",
+      "aliases": [
+        "6",
+        "+ 6"
+      ],
+      "hint": "Let sulfur be x: x + 4(−2) = −2."
+    },
+    {
+      "id": "race-chemistry-0130",
+      "subject": "chemistry",
+      "level": "Both",
+      "topic": "Organic",
+      "difficulty": 3,
+      "prompt": "What is the product of complete oxidation of a primary alcohol?",
+      "answer": "carboxylic acid",
+      "aliases": [
+        "a carboxylic acid"
+      ],
+      "hint": "Primary alcohol → aldehyde → carboxylic acid under complete oxidation."
+    },
+    {
+      "id": "race-chemistry-0131",
+      "subject": "chemistry",
+      "level": "Both",
+      "topic": "Acids & Bases",
+      "difficulty": 5,
+      "prompt": "A strong acid has [H⁺] = 2.5×10⁻⁴ mol dm⁻³. Find pH to 3 d.p.",
+      "answer": 3.602,
+      "tolerance": 0.002,
+      "hint": "pH=−log₁₀[H⁺]."
+    },
+    {
+      "id": "race-chemistry-0132",
+      "subject": "chemistry",
+      "level": "Both",
+      "topic": "Bonding",
+      "difficulty": 5,
+      "prompt": "Which intermolecular force is present between all molecular substances?",
+      "answer": "D",
+      "options": [
+        "Ionic bonding",
+        "Hydrogen bonding",
+        "Permanent dipole forces",
+        "London dispersion forces"
+      ],
+      "hint": "Instantaneous dipoles can arise in every electron cloud."
+    },
+    {
+      "id": "race-biology-0133",
+      "subject": "biology",
+      "level": "Both",
+      "topic": "Cell Biology",
+      "difficulty": 2,
+      "prompt": "A cell image measures 60 mm while the actual cell length is 5 μm. Find the magnification.",
+      "answer": 12000.0,
+      "tolerance": 0.01,
+      "hint": "Convert both lengths to the same unit before using magnification=image size/actual size."
+    },
+    {
+      "id": "race-biology-0134",
+      "subject": "biology",
+      "level": "Both",
+      "topic": "Molecular Biology",
+      "difficulty": 3,
+      "prompt": "Which bond joins complementary bases across the two DNA strands?",
+      "answer": "C",
+      "options": [
+        "Peptide bond",
+        "Phosphodiester bond",
+        "Hydrogen bond",
+        "Glycosidic bond"
+      ],
+      "hint": "Base pairs are held together by relatively weak bonds that allow strand separation."
+    },
+    {
+      "id": "race-biology-0135",
+      "subject": "biology",
+      "level": "Both",
+      "topic": "Genetics",
+      "difficulty": 3,
+      "prompt": "In a monohybrid cross Aa × Aa, what is the probability of genotype aa?",
+      "answer": 0.25,
+      "tolerance": 1e-05,
+      "hint": "Use a 2×2 Punnett square."
+    },
+    {
+      "id": "race-biology-0136",
+      "subject": "biology",
+      "level": "Both",
+      "topic": "Metabolism",
+      "difficulty": 4,
+      "prompt": "Where does the light-independent stage of photosynthesis occur in a chloroplast?",
+      "answer": "B",
+      "options": [
+        "Thylakoid lumen",
+        "Stroma",
+        "Cristae",
+        "Cytosol"
+      ],
+      "hint": "The Calvin cycle enzymes are located in the fluid surrounding the thylakoids."
+    },
+    {
+      "id": "race-biology-0137",
+      "subject": "biology",
+      "level": "Both",
+      "topic": "Ecology",
+      "difficulty": 3,
+      "prompt": "Producers contain 18 000 kJ of energy. If 12% is transferred to primary consumers, how much energy reaches them?",
+      "answer": 2160,
+      "hint": "Multiply by the transfer efficiency as a decimal."
+    },
+    {
+      "id": "race-biology-0138",
+      "subject": "biology",
+      "level": "Both",
+      "topic": "Evolution",
+      "difficulty": 4,
+      "prompt": "Which process directly changes allele frequencies because individuals move between populations?",
+      "answer": "C",
+      "options": [
+        "Mutation",
+        "Genetic drift",
+        "Gene flow",
+        "Stabilizing selection"
+      ],
+      "hint": "Movement of alleles between populations accompanies migration."
+    },
+    {
+      "id": "race-biology-0139",
+      "subject": "biology",
+      "level": "Both",
+      "topic": "Human Physiology",
+      "difficulty": 2,
+      "prompt": "Which chamber pumps blood into the systemic circulation?",
+      "answer": "D",
+      "options": [
+        "Right atrium",
+        "Right ventricle",
+        "Left atrium",
+        "Left ventricle"
+      ],
+      "hint": "Systemic circulation begins at the chamber connected to the aorta."
+    },
+    {
+      "id": "race-biology-0140",
+      "subject": "biology",
+      "level": "Both",
+      "topic": "Genetics",
+      "difficulty": 5,
+      "prompt": "In a Hardy–Weinberg population, allele frequencies are p=0.5 and q=0.5. Find the expected heterozygote frequency.",
+      "answer": 0.5,
+      "tolerance": 0.001,
+      "hint": "Heterozygote frequency = 2pq."
+    },
+    {
+      "id": "race-biology-0141",
+      "subject": "biology",
+      "level": "Both",
+      "topic": "Cell Biology",
+      "difficulty": 4,
+      "prompt": "A cube-shaped cell doubles its side length. By what factor does its surface-area-to-volume ratio change?",
+      "answer": "halves",
+      "aliases": [
+        "1/2",
+        "0.5",
+        "decreases by half"
+      ],
+      "hint": "For a cube, SA:V is proportional to 1/side length."
+    },
+    {
+      "id": "race-biology-0142",
+      "subject": "biology",
+      "level": "Both",
+      "topic": "Molecular Biology",
+      "difficulty": 5,
+      "prompt": "Which enzyme synthesizes RNA from a DNA template during transcription?",
+      "answer": "RNA polymerase",
+      "aliases": [
+        "rna polymerase"
+      ],
+      "hint": "The enzyme moves along DNA while joining RNA nucleotides."
+    },
+    {
+      "id": "race-biology-0143",
+      "subject": "biology",
+      "level": "Both",
+      "topic": "Metabolism",
+      "difficulty": 3,
+      "prompt": "Which molecule is the immediate energy currency used by cells?",
+      "answer": "ATP",
+      "aliases": [
+        "adenosine triphosphate"
+      ],
+      "hint": "It transfers energy through phosphorylation reactions."
+    },
+    {
+      "id": "race-biology-0144",
+      "subject": "biology",
+      "level": "Both",
+      "topic": "Ecology",
+      "difficulty": 5,
+      "prompt": "A quadrat survey finds 42 individuals in 7 quadrats of 0.5 m² each. Estimate density in individuals per m².",
+      "answer": 12,
+      "tolerance": 0.001,
+      "hint": "Density = total individuals / total sampled area."
+    },
+    {
+      "id": "race-economics-0145",
+      "subject": "economics",
+      "level": "Both",
+      "topic": "Microeconomics",
+      "difficulty": 4,
+      "prompt": "Price falls from 14 to 11 while quantity demanded rises from 89 to 110. Using the midpoint method, calculate PED to 2 d.p.",
+      "answer": 0.88,
+      "tolerance": 0.015,
+      "hint": "PED = %ΔQd / %ΔP using midpoint percentage changes."
+    },
+    {
+      "id": "race-economics-0146",
+      "subject": "economics",
+      "level": "Both",
+      "topic": "Macroeconomics",
+      "difficulty": 3,
+      "prompt": "If the marginal propensity to consume is 0.6, calculate the simple Keynesian multiplier.",
+      "answer": 2.5,
+      "tolerance": 0.01,
+      "hint": "Multiplier = 1/(1−MPC)."
+    },
+    {
+      "id": "race-economics-0147",
+      "subject": "economics",
+      "level": "Both",
+      "topic": "Macroeconomics",
+      "difficulty": 4,
+      "prompt": "Nominal GDP is 693 billion and the GDP deflator is 110. Find real GDP in billions to 1 d.p.",
+      "answer": 630.0,
+      "tolerance": 0.06,
+      "hint": "Real GDP = nominal GDP ÷ (deflator/100)."
+    },
+    {
+      "id": "race-economics-0148",
+      "subject": "economics",
+      "level": "Both",
+      "topic": "Global Economy",
+      "difficulty": 2,
+      "prompt": "Exports are $259 bn and imports are $444 bn. Find net exports in $bn.",
+      "answer": -185,
+      "hint": "Net exports = exports − imports."
+    },
+    {
+      "id": "race-economics-0149",
+      "subject": "economics",
+      "level": "Both",
+      "topic": "Development",
+      "difficulty": 3,
+      "prompt": "Which measure combines health, education and income dimensions?",
+      "answer": "B",
+      "options": [
+        "Gini coefficient",
+        "Human Development Index",
+        "Consumer Price Index",
+        "Current account balance"
+      ],
+      "hint": "This composite index is published as a broad development indicator."
+    },
+    {
+      "id": "race-economics-0150",
+      "subject": "economics",
+      "level": "Both",
+      "topic": "Microeconomics",
+      "difficulty": 2,
+      "prompt": "If PED = 0.4, demand is best described as:",
+      "answer": "A",
+      "options": [
+        "Price inelastic",
+        "Unit elastic",
+        "Price elastic",
+        "Perfectly elastic"
+      ],
+      "hint": "Compare the absolute PED value with 1."
+    },
+    {
+      "id": "race-economics-0151",
+      "subject": "economics",
+      "level": "Both",
+      "topic": "Macroeconomics",
+      "difficulty": 3,
+      "prompt": "A price index rises from 120 to 136. Calculate the percentage inflation over the period to 2 d.p.",
+      "answer": 13.33,
+      "tolerance": 0.015,
+      "hint": "Percentage change = (new−old)/old ×100."
+    },
+    {
+      "id": "race-economics-0152",
+      "subject": "economics",
+      "level": "Both",
+      "topic": "Global Economy",
+      "difficulty": 4,
+      "prompt": "A currency appreciation, ceteris paribus, tends to make the country’s exports:",
+      "answer": "C",
+      "options": [
+        "Cheaper to foreigners",
+        "Unaffected",
+        "More expensive to foreigners",
+        "Always larger in quantity"
+      ],
+      "hint": "Foreign buyers must give up more of their currency for each unit of the appreciated currency."
+    },
+    {
+      "id": "race-economics-0153",
+      "subject": "economics",
+      "level": "Both",
+      "topic": "Microeconomics",
+      "difficulty": 5,
+      "prompt": "A per-unit tax of $4 raises the consumer price from $17 to $19. What tax burden per unit falls on producers?",
+      "answer": 2,
+      "tolerance": 0.001,
+      "hint": "Producer burden = original producer price − new net price received by producers."
+    },
+    {
+      "id": "race-economics-0154",
+      "subject": "economics",
+      "level": "Both",
+      "topic": "Development",
+      "difficulty": 4,
+      "prompt": "A Gini coefficient closer to 1 indicates:",
+      "answer": "D",
+      "options": [
+        "Lower inflation",
+        "Higher life expectancy",
+        "More equal income distribution",
+        "Greater income inequality"
+      ],
+      "hint": "The coefficient ranges from perfect equality toward maximum inequality."
+    },
+    {
+      "id": "race-economics-0155",
+      "subject": "economics",
+      "level": "Both",
+      "topic": "Macroeconomics",
+      "difficulty": 5,
+      "prompt": "If MPC = 0.75 and autonomous spending rises by $20 bn, what is the simple-model change in equilibrium national income?",
+      "answer": 80,
+      "tolerance": 0.001,
+      "hint": "Multiplier=1/(1−MPC)=4, then multiply by the spending change."
+    },
+    {
+      "id": "race-economics-0156",
+      "subject": "economics",
+      "level": "Both",
+      "topic": "Global Economy",
+      "difficulty": 3,
+      "prompt": "If an exchange rate moves from 1.20 to 1.32 units of foreign currency per domestic currency, by what percentage has the domestic currency appreciated?",
+      "answer": 10,
+      "tolerance": 0.001,
+      "hint": "Percentage change=(1.32−1.20)/1.20×100."
+    },
+    {
+      "id": "race-ess-0157",
+      "subject": "ess",
+      "level": "Both",
+      "topic": "Ecosystems",
+      "difficulty": 2,
+      "prompt": "An ecosystem has GPP=964 kJ m⁻² yr⁻¹ and respiratory losses=244 kJ m⁻² yr⁻¹. Find NPP.",
+      "answer": 720,
+      "hint": "NPP = GPP − respiration."
+    },
+    {
+      "id": "race-ess-0158",
+      "subject": "ess",
+      "level": "Both",
+      "topic": "Energy & Resources",
+      "difficulty": 3,
+      "prompt": "A system receives 1111 kJ and delivers 588 kJ of useful energy. Calculate efficiency to 1 d.p.",
+      "answer": 52.9,
+      "tolerance": 0.06,
+      "hint": "Efficiency = useful output/input ×100%."
+    },
+    {
+      "id": "race-ess-0159",
+      "subject": "ess",
+      "level": "Both",
+      "topic": "Sustainability",
+      "difficulty": 3,
+      "prompt": "A population of 16821 grows by 2% in one year. Estimate the numerical increase.",
+      "answer": 336,
+      "tolerance": 0.51,
+      "hint": "Increase = population × growth rate as a decimal."
+    },
+    {
+      "id": "race-ess-0160",
+      "subject": "ess",
+      "level": "Both",
+      "topic": "Climate Change",
+      "difficulty": 2,
+      "prompt": "Which gas is the largest direct anthropogenic contributor among these to long-lived greenhouse forcing?",
+      "answer": "A",
+      "options": [
+        "Carbon dioxide",
+        "Oxygen",
+        "Nitrogen",
+        "Argon"
+      ],
+      "hint": "Consider major long-lived greenhouse gases released by fossil-fuel combustion."
+    },
+    {
+      "id": "race-ess-0161",
+      "subject": "ess",
+      "level": "Both",
+      "topic": "Biodiversity",
+      "difficulty": 4,
+      "prompt": "Which index increases when both species richness and evenness increase?",
+      "answer": "B",
+      "options": [
+        "Biochemical oxygen demand",
+        "Diversity index",
+        "Ecological footprint",
+        "Carbon intensity"
+      ],
+      "hint": "The metric is designed to represent biological diversity."
+    },
+    {
+      "id": "race-ess-0162",
+      "subject": "ess",
+      "level": "Both",
+      "topic": "Pollution",
+      "difficulty": 3,
+      "prompt": "High biochemical oxygen demand in water most directly indicates:",
+      "answer": "C",
+      "options": [
+        "Low organic matter",
+        "High salinity",
+        "High biodegradable organic pollution",
+        "High dissolved oxygen"
+      ],
+      "hint": "Microorganisms consume oxygen while decomposing biodegradable material."
+    },
+    {
+      "id": "race-ess-0163",
+      "subject": "ess",
+      "level": "Both",
+      "topic": "Water & Food",
+      "difficulty": 3,
+      "prompt": "A farm uses 900 m³ of water and 630 m³ reaches crops effectively. Find irrigation efficiency as a percentage.",
+      "answer": 70,
+      "tolerance": 0.001,
+      "hint": "Efficiency=useful water/input water×100%."
+    },
+    {
+      "id": "race-ess-0164",
+      "subject": "ess",
+      "level": "Both",
+      "topic": "Energy & Resources",
+      "difficulty": 4,
+      "prompt": "Which energy source is renewable on human timescales?",
+      "answer": "D",
+      "options": [
+        "Coal",
+        "Natural gas",
+        "Uranium ore",
+        "Wind"
+      ],
+      "hint": "Choose the source replenished continuously by natural processes."
+    },
+    {
+      "id": "race-ess-0165",
+      "subject": "ess",
+      "level": "Both",
+      "topic": "Sustainability",
+      "difficulty": 5,
+      "prompt": "A region has 3000 global hectares of biocapacity. If average ecological footprint is 2.5 gha per person, how many people could be supported at that footprint?",
+      "answer": 1200,
+      "tolerance": 0.51,
+      "hint": "Supported population = total biocapacity ÷ footprint per person."
+    },
+    {
+      "id": "race-ess-0166",
+      "subject": "ess",
+      "level": "Both",
+      "topic": "Ecosystems",
+      "difficulty": 4,
+      "prompt": "If only 10% of trophic-level energy is transferred, how much of 25 000 kJ at producers is expected at secondary consumers?",
+      "answer": 250,
+      "tolerance": 0.001,
+      "hint": "Apply 10% transfer twice: producer → primary → secondary."
+    },
+    {
+      "id": "race-ess-0167",
+      "subject": "ess",
+      "level": "Both",
+      "topic": "Climate Change",
+      "difficulty": 5,
+      "prompt": "Which feedback is positive?",
+      "answer": "A",
+      "options": [
+        "Ice melts, lowering albedo and increasing absorption",
+        "More cloud always reflects all sunlight",
+        "Reforestation removes CO₂",
+        "Higher efficiency reduces fuel use"
+      ],
+      "hint": "A positive feedback amplifies the original change."
+    },
+    {
+      "id": "race-ess-0168",
+      "subject": "ess",
+      "level": "Both",
+      "topic": "Pollution",
+      "difficulty": 4,
+      "prompt": "A pollutant concentration is 80 mg L⁻¹ and falls by half every 5 days. What is the concentration after 15 days?",
+      "answer": 10,
+      "tolerance": 0.001,
+      "hint": "15 days is three half-lives: multiply by (1/2)³."
+    }
+  ]
+}

@@ -1,12 +1,9 @@
 {
   "rules": {
-    ".read": false,
-    ".write": false,
     "rooms": {
       "$room": {
-        ".read": "$room.matches(/^[A-Z0-9]{6}$/)",
-        ".write": "$room.matches(/^[A-Z0-9]{6}$/)",
-        ".validate": "newData.hasChildren(['status','round','config','questions','players'])"
+        ".read": true,
+        ".write": true
       }
     }
   }

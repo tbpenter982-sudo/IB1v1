@@ -1,187 +1,20 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Race a friend through IB Math AA HL and Physics HL questions." />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#0a0b10" />
   <title>IB Race</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css" />
-  <script defer src="https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js"></script>
-  <script defer src="https://www.gstatic.com/firebasejs/12.19.0/firebase-database-compat.js"></script>
-  <script defer src="firebase-config.js"></script>
-  <script defer src="app.js"></script>
 </head>
 <body>
-  <div class="noise"></div>
-  <header class="topbar">
-    <a class="brand" href="#" aria-label="IB Race home">
-      <span class="brand-mark">⚡</span>
-      <span>IB RACE</span>
-    </a>
-    <div class="trial-pill">TRIAL • MATH AA HL + PHYSICS HL</div>
-  </header>
+  <div id="app"></div>
 
-  <main id="app">
-    <section id="screen-home" class="screen active hero-screen">
-      <div class="hero-copy">
-        <div class="eyebrow">HEAD-TO-HEAD STUDY</div>
-        <h1>Stop revising alone.<br><span>Race for the answer.</span></h1>
-        <p>Challenge a friend to a timed IB sprint. Pick your subject, topics, question count and timer — then solve the same questions live.</p>
-        <div class="hero-actions">
-          <button id="btn-create" class="btn primary large">Create a race <span>→</span></button>
-          <button id="btn-join" class="btn ghost large">Join with code</button>
-        </div>
-        <div class="feature-row">
-          <div><strong>2</strong><span>players</span></div>
-          <div><strong>∞</strong><span>races</span></div>
-          <div><strong>0</strong><span>accounts needed</span></div>
-        </div>
-      </div>
-      <div class="hero-card-wrap">
-        <div class="race-card demo-card">
-          <div class="demo-head"><span>LIVE RACE</span><span class="live-dot">● LIVE</span></div>
-          <div class="demo-player"><span>You</span><strong>7</strong></div>
-          <div class="progress"><i style="width:70%"></i></div>
-          <div class="demo-player muted"><span>Opponent</span><strong>5</strong></div>
-          <div class="progress"><i style="width:50%"></i></div>
-          <div class="demo-q">Q 8 / 10</div>
-          <div class="formula">∫ x e<sup>x²</sup> dx</div>
-          <div class="demo-answer">Your answer… <span>↵</span></div>
-          <div class="demo-timer">01:42</div>
-        </div>
-      </div>
-    </section>
-
-    <section id="screen-setup" class="screen">
-      <div class="panel setup-panel">
-        <button class="back-link" data-back>← Back</button>
-        <div class="eyebrow">CREATE RACE</div>
-        <h2>Build your challenge</h2>
-        <p class="sub">Both players get the same questions in the same order.</p>
-
-        <div class="form-grid">
-          <label class="field full">
-            <span>Subject</span>
-            <div class="segmented" id="subject-toggle">
-              <button class="selected" data-subject="math">Math AA HL</button>
-              <button data-subject="physics">Physics HL</button>
-            </div>
-          </label>
-
-          <div class="field full">
-            <span>Topics</span>
-            <div id="topic-list" class="topic-grid"></div>
-          </div>
-
-          <label class="field">
-            <span>Questions</span>
-            <select id="question-count">
-              <option value="5">5</option>
-              <option value="10" selected>10</option>
-              <option value="15">15</option>
-              <option value="20">20</option>
-            </select>
-          </label>
-
-          <label class="field">
-            <span>Race time</span>
-            <select id="race-time">
-              <option value="180">3 minutes</option>
-              <option value="300" selected>5 minutes</option>
-              <option value="600">10 minutes</option>
-              <option value="900">15 minutes</option>
-              <option value="0">No timer</option>
-            </select>
-          </label>
-        </div>
-
-        <button id="btn-host" class="btn primary wide">Create room</button>
-        <div id="setup-error" class="error hidden"></div>
-      </div>
-    </section>
-
-    <section id="screen-join" class="screen">
-      <div class="panel compact-panel">
-        <button class="back-link" data-back>← Back</button>
-        <div class="eyebrow">JOIN RACE</div>
-        <h2>Enter room code</h2>
-        <p class="sub">Get the six-character code from the host.</p>
-        <input id="join-code" class="code-input" maxlength="6" placeholder="ABC123" autocomplete="off" />
-        <button id="btn-connect" class="btn primary wide">Join race</button>
-        <div id="join-error" class="error hidden"></div>
-      </div>
-    </section>
-
-    <section id="screen-lobby" class="screen">
-      <div class="panel lobby-panel">
-        <div class="eyebrow">RACE LOBBY</div>
-        <h2 id="lobby-title">Waiting for opponent</h2>
-        <p class="sub">Share this room code:</p>
-        <button id="copy-code" class="room-code" title="Copy code"><span id="room-code-value">------</span><small>click to copy</small></button>
-        <div class="lobby-status">
-          <div class="player-slot ready"><span class="avatar">Y</span><div><b>You</b><small>Ready</small></div><span class="check">✓</span></div>
-          <div id="opponent-slot" class="player-slot"><span class="avatar">?</span><div><b>Opponent</b><small>Waiting…</small></div><span class="pulse"></span></div>
-        </div>
-        <div id="race-summary" class="summary-card"></div>
-        <button id="btn-start" class="btn primary wide" disabled>Start race</button>
-        <p id="lobby-note" class="tiny">The host starts when both players are connected.</p>
-      </div>
-    </section>
-
-    <section id="screen-race" class="screen race-screen">
-      <div class="race-top">
-        <div class="race-meta"><span id="race-subject">Math AA HL</span><small id="race-topic">Functions</small></div>
-        <div class="timer" id="timer">05:00</div>
-        <div class="question-index" id="question-index">1 / 10</div>
-      </div>
-      <div class="scoreboard">
-        <div class="score-row you"><div><b>You</b><small id="your-status">Solving…</small></div><strong id="your-score">0</strong></div>
-        <div class="score-track"><i id="your-progress"></i></div>
-        <div class="score-row opponent"><div><b>Opponent</b><small id="opp-status">Solving…</small></div><strong id="opp-score">0</strong></div>
-        <div class="score-track"><i id="opp-progress"></i></div>
-      </div>
-
-      <div class="question-shell">
-        <div class="question-card">
-          <div class="question-badges"><span id="q-topic">Topic</span><span id="q-difficulty">HL</span></div>
-          <h3 id="q-prompt">Question text</h3>
-          <div id="q-expression" class="expression"></div>
-          <form id="answer-form">
-            <label for="answer-input">Answer</label>
-            <div class="answer-row">
-              <input id="answer-input" type="text" inputmode="decimal" autocomplete="off" placeholder="Enter answer" />
-              <button class="btn primary" type="submit">Submit ↵</button>
-            </div>
-            <small id="answer-help">Numbers may be entered as decimals.</small>
-          </form>
-          <div id="feedback" class="feedback hidden"></div>
-        </div>
-      </div>
-    </section>
-
-    <section id="screen-results" class="screen">
-      <div class="panel results-panel">
-        <div id="result-icon" class="result-icon">🏁</div>
-        <div class="eyebrow">RACE COMPLETE</div>
-        <h2 id="result-title">Results</h2>
-        <p id="result-sub" class="sub"></p>
-        <div class="final-score">
-          <div><span>You</span><strong id="final-your-score">0</strong></div>
-          <div class="vs">VS</div>
-          <div><span>Opponent</span><strong id="final-opp-score">0</strong></div>
-        </div>
-        <div id="review-list" class="review-list"></div>
-        <div class="result-actions">
-          <button id="btn-rematch" class="btn primary">Rematch</button>
-          <button id="btn-home" class="btn ghost">Back home</button>
-        </div>
-      </div>
-    </section>
-  </main>
-
-  <footer>Built for IB students • Trial question bank uses original practice questions, not official IB exam items.</footer>
+  <!-- Firebase Realtime Database (compat build to match the existing project). -->
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+  <script src="firebase-config.js"></script>
+  <script src="questionbank-config.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>

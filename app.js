@@ -20,6 +20,22 @@ const SUBJECTS = {
   ess:{name:'Environmental Systems & Societies',short:'ESS',icon:'◎',topics:['Ecosystems','Biodiversity','Pollution','Climate Change','Water & Food','Energy & Resources','Sustainability']}
 };
 
+const DEFAULT_QUESTION_BANKS = {
+  race: {
+    url: 'https://ommodi.site/questionbanks/race.json',
+    fallback: './questionbanks/race.json'
+  },
+  practice: {
+    url: 'https://ommodi.site/questionbanks/practice.json',
+    fallback: './questionbanks/practice.json'
+  }
+};
+
+const BUILD_INFO = {
+  version: '5.1.0-ommodi',
+  questionBankHost: 'https://ommodi.site/'
+};
+
 const DEFAULT_CONFIG = {
   subject:'mathAA', level:'HL', hardMode:false,
   topics:[...SUBJECTS.mathAA.topics], count:10, time:300, maxPlayers:6
@@ -433,7 +449,7 @@ function stopPracticeTimer(){ clearInterval(state.practice.timer); state.practic
 /* ------------------------- QUESTION BANK ------------------------- */
 async function loadQuestionBanks(){
   await Promise.all(['race','practice'].map(async kind=>{
-    const source=window.IBRACE_QUESTION_BANKS?.[kind];
+    const source=window.IBRACE_QUESTION_BANKS?.[kind] || DEFAULT_QUESTION_BANKS[kind];
     if(!source){ state.bankStatus[kind]='error'; state.bankErrors[kind]=`No ${kind} URL configured.`; return; }
     try{
       const primary=typeof source==='string'?source:source.url;
